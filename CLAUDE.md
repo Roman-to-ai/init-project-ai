@@ -36,10 +36,10 @@
 │   ├── 基建/                 换一个业务模块仍然成立的：环境、主题、工具链、约定
 │   ├── 生成器/               改它会影响所有生成物的
 │   └── 业务/                 一个模块一份（表格部分由脚本生成）
-├── .claude/skills/          自建 skill（12 个）：
+├── .claude/skills/          自建 skill（14 个）：
 │                              ai-changelog / backend-code / db-manage / design-schema /
-│                              frontend-component / init-project / new-module /
-│                              start-project / sync-ai-layer / troubleshoot /
+│                              frontend-component / init-project / new-module / release /
+│                              start-project / sync-ai-layer / task-brief / troubleshoot /
 │                              update-docs / verify-module
 │                            引用的 39 个 Element Plus 组件 skill（由 scripts/element-plus-scan.mjs 生成）
 ├── .gitlab-ci.yml           CI：static / frontend / docs 三段（**给实例化后的项目用**）

@@ -7,6 +7,7 @@
       "Bash(node scripts/templatize.mjs --dry-run *)",
       "Bash(node scripts/element-plus-scan.mjs *)",
       "Bash(node scripts/skill-lint.mjs *)",
+      "Bash(node scripts/ref-check.mjs *)",
       "Bash(node scripts/db-query.mjs *)",
       "Bash(node scripts/lint-ratchet.mjs *)",
       "Bash(node scripts/ai-layer-check.mjs *)",

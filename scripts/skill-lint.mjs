@@ -32,6 +32,9 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+// 路径提取逻辑与 `ref-check.mjs` **共用一份** —— 两边各写一份迟早会漂移，
+// 而"漂移"的表现是**一个查得出、一个查不出**。判定规则见那个脚本的文件头。
+import { refPathsIn, topLevelDirs } from './ref-check.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SKILLS_DIR = path.join(ROOT, '.claude', 'skills')
@@ -78,34 +81,9 @@ function parseFrontmatter(text) {
 }
 
 /**
- * 正文里反引号包住的**仓库根相对路径**。
- *
- * ⚠️ 只认第一段是真实顶层目录的路径。理由：skill 里反引号包的东西五花八门 ——
- * JSON 片段（`{"optionsApi":"/x"}`）、shell 参数（`/PID`）、npm 包名（`@esbuild/win32-x64`）、
- * 以及大量示意性简写（`sql/`、`src/types/api/index.ts`、`biz/domain/`）。
- * 全都当路径查会淹在误报里，真正该查的（`docs/xxx.md` 被改名）反而看不见。
- *
- * 顶层目录**从磁盘现读**，不硬编码 —— 加了新目录不用回来改这里。
+ * 正文里反引号包住的**仓库根相对路径**的提取逻辑，与 `ref-check.mjs` **共用一份**。
+ * 判定规则（只认第一段是真实顶层目录的）见那个脚本的文件头。
  */
-function topLevelDirs() {
-  return new Set(readdirSync(ROOT).filter((n) => statSync(path.join(ROOT, n)).isDirectory()))
-}
-
-function refPaths(body, top) {
-  const out = new Set()
-  for (const m of body.matchAll(/`([^`\n]+)`/g)) {
-    const raw = m[1].trim()
-    if (raw.includes('://')) continue
-    if (raw.includes('*') || raw.includes('<') || raw.includes('>')) continue
-    if (/\s/.test(raw)) continue
-    if (raw.startsWith('/') || raw.startsWith('.')) continue
-    if (!raw.includes('/')) continue
-    const clean = raw.replace(/[),.;:]+$/, '').replace(/#.*$/, '')
-    if (!top.has(clean.split('/')[0])) continue
-    out.add(clean)
-  }
-  return out
-}
 
 // ──────────────────────────────────────────────────────────────────
 
@@ -167,7 +145,7 @@ function lint(skillName, text, checkConventions, top) {
   }
 
   const missing = []
-  for (const p of refPaths(body, top)) {
+  for (const p of refPathsIn(body, top)) {
     if (!existsSync(path.join(ROOT, p))) missing.push(p)
   }
   if (missing.length) {
@@ -229,7 +207,7 @@ function main() {
 
   const all = has('--all')
   const verbose = has('--verbose')
-  const top = topLevelDirs()
+  const top = topLevelDirs(ROOT)
   const dirs = readdirSync(SKILLS_DIR).filter((n) => statSync(path.join(SKILLS_DIR, n)).isDirectory())
 
   let hardCount = 0

@@ -32,6 +32,7 @@ description: 在本项目里更新文档——改完代码后按「改了什么 
 | 改了 `@@MAVEN_ARTIFACT_PREFIX@@-biz` 模块的接线（pom） | `@@MAVEN_ARTIFACT_PREFIX@@-biz/README.md` |
 | **新建 / 改动了 `.claude/skills/` 下的 skill** | ① 跑 `node scripts/skill-lint.mjs`（硬约束违反会让 skill 装不上）<br>② 若新增了 skill，同步 `CLAUDE.md` 的仓库结构 |
 | **改动了 `.claude/commands/`** | 同上（命令的 frontmatter 写错会静默不出现） |
+| **改名 / 删除了任何文件** | 跑 `node scripts/ref-check.mjs --check` —— 全仓 `.md` / `.txt` 里引用它的地方要一起改。**没有任何东西会自动提醒你** |
 | **一轮较长的改动收尾** | 跑 `/ai-changelog` 记一条（改了什么 / 为什么 / **哪些没验证**） |
 | **前端用到了新的 Element Plus 组件** | 跑 `node scripts/element-plus-scan.mjs --check`；报缺失则跑 `--fetch` 拉技能（见 `docs/基建/技能规范.md`） |
 | **新踩到一个坑** | 就近写进对应文档的 `## ⚠️ 坑` |

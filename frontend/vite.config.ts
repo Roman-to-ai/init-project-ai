@@ -41,7 +41,13 @@ export default defineConfig(({ mode, command }) => {
     },
     // vite 相关配置
     server: {
-      port: @@FRONTEND_PORT@@,
+      // ⚠️ 端口写成 `Number("…")` 而不是裸占位符 —— 裸着的话模板态是
+      //    `port: @@FRONTEND_PORT@@,`，**不是合法 TS**，会让 vue-tsc 撞上语法错误
+      //    直接中止整个程序，于是 `typecheck` 这道门禁在模板仓里整个失效
+      //    （报 1 个错而不是 436 个，还容易让人误跑 `--update` 把基线压塌）。
+      //    包成字符串再转数字：模板态是 `Number("@@FRONTEND_PORT@@")` → NaN（模板从不运行），
+      //    实例态是 `Number("8082")` → 8082，两边都是合法 TS。
+      port: Number("@@FRONTEND_PORT@@"),
       host: true,
       open: true,
       proxy: {

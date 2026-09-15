@@ -83,16 +83,18 @@ pnpm -C frontend dev
 node scripts/typecheck.mjs              # 类型检查棘轮：只报【新增】错误，有新增则 exit 1
 node scripts/lint-ratchet.mjs           # ESLint 棘轮：同上
 node scripts/doc-scan.mjs --check       # 文档与代码/数据库是否一致，有漂移则 exit 1
-node scripts/skill-lint.mjs             # skill / 命令的 frontmatter 与引用完整性
+node scripts/skill-lint.mjs             # skill / 命令的 frontmatter 与结构
+node scripts/ref-check.mjs --check      # 全仓 .md / .txt 里的路径引用是否还有效
 node scripts/element-plus-scan.mjs --check   # 源码用到的组件都有对应技能
 ```
 
 前三条是**棘轮** —— 存量记在 `scripts/*-baseline.json`，只对**新增**失败。
 修掉问题后跑对应的 `--update` 让基线收紧。
 
-> 这些已经挂进 `.gitlab-ci.yml`（`static` / `frontend` / `docs` 三段）。
-> ⚠️ 但 **CI 是给实例化后的项目用的** —— 模板仓里 `typecheck` 必定失败
-> （`vite.config.ts` 的占位符不是合法 TS），原因见 `docs/基建/类型检查棘轮.md`。
+> 这些已经挂进 `.gitlab-ci.yml`（`static` / `frontend` / `docs` 三段），
+> **模板仓和实例化后的项目里都能跑**。
+> （模板态的 `typecheck` 曾因 `vite.config.ts` 的占位符不可用，2026-09-15 已修 ——
+> 见 `docs/基建/类型检查棘轮.md`。）
 
 ## 用这个模板起新项目
 
@@ -102,7 +104,7 @@ node scripts/init.mjs        # 交互式填：项目名、包根、模块前缀�
 
 它会把所有 `@@KEY@@` 占位符换成你的值，**同时改文件内容和文件/目录名**
 （比如 `backend/@@MAVEN_ARTIFACT_PREFIX@@-admin/src/main/java/@@JAVA_PACKAGE_ROOT@@/@@APP_CLASS@@.java`
-会变成 `backend/acme-admin/src/main/java/com/acme/AcmeApplication.java`）。
+会变成 `backend/<模块前缀>-admin/.../<启动类>.java`）。
 
 先体检、不落盘：
 

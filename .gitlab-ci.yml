@@ -1,10 +1,9 @@
 # GitLab CI —— 只跑门禁，不做部署
 #
-# ── ⚠️ 这个文件是给**实例化后的项目**用的 ────────────────────────
-# 模板仓库自己跑这套 CI 会有一个必然失败项：`typecheck`。
-# 模板里 `vite.config.ts` 的 `port:` 是占位符，不是合法 TS ——
-# vue-tsc 会在那里中止，报"1 个错误"，棘轮随即显示"修复了 436 个"（假象）。
-# 详见 `docs/基建/类型检查棘轮.md` 与 `AI工程化需求.txt` §3.16。
+# ── 模板仓和实例化后的项目里都能跑 ──────────────────────────────
+# （曾几何时模板仓跑不通过：`vite.config.ts` 的 `port:` 是裸占位符、不是合法 TS，
+#   vue-tsc 会在那里中止。2026-09-15 已把那行包成 `Number("…")`，
+#   两种状态下都是合法 TS。详见 `docs/基建/类型检查棘轮.md`。）
 #
 # ── 为什么 CI 的职责只有"跑门禁" ─────────────────────────────────
 # 本项目的运行形态是：中间件走 Docker、代码走本地 `pnpm` / `java`，
@@ -35,6 +34,8 @@ static-checks:
   script:
     # skill / 命令的 frontmatter 与引用完整性（硬约束违反 → exit 1）
     - node scripts/skill-lint.mjs
+    # 全仓 .md / .txt 里引用的仓库根相对路径是否存在（失效 → exit 1）
+    - node scripts/ref-check.mjs --check
     # 源码用到的 Element Plus 组件是否都有对应技能（缺了 → exit 1）
     - node scripts/element-plus-scan.mjs --check
 

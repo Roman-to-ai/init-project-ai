@@ -47,6 +47,7 @@ import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline/promises'
 import { VARIABLES, DEFAULTS, EXCLUDE_DIRS, EXCLUDE_FILES, BINARY_EXT,
          IGNORE_PLACEHOLDERS } from './init.config.mjs'
+import { snapshotLayer, MANIFEST } from './ai-layer.config.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const argv = process.argv.slice(2)
@@ -301,6 +302,25 @@ if (!DRY) {
     VARIABLES.map((v) => [v.key, v.secret ? '***' : values[v.key]]))
   writeFileSync(path.join(ROOT, '.template-init.json'),
     JSON.stringify({ instantiatedAt: new Date().toISOString(), values: recorded }, null, 2) + '\n', 'utf8')
+
+  // ── 记一份 AI 工程层的基线哈希 ──────────────────────────────────
+  // 用途：以后模板改了，`scripts/ai-layer-check.mjs` 就能分辨
+  //   · 实例**从没动过**这个文件（哈希与基线一致）→ 可以安全地用模板版覆盖
+  //   · 实例**本地改过** → 得人看一眼，不能自动覆盖
+  //
+  // 没有这份基线的话，两种情况的文件长得一模一样，**分不出来** ——
+  // 而区分它们的唯一替代办法是版本历史（git），实例里不一定有。
+  //
+  // ⚠️ 必须在**所有替换做完之后**采集，不然记的是替换前的哈希，永远对不上。
+  const manifest = {
+    _comment:
+      'AI 工程层基线。由 scripts/init.mjs 在实例化时写。' +
+      '记录实例化那一刻各文件的哈希，供 scripts/ai-layer-check.mjs 判断' +
+      '"本地有没有动过"。别手改 —— 改了会让"可从模板更新"的判断失准。',
+    recordedAt: new Date().toISOString(),
+    files: Object.fromEntries(snapshotLayer(ROOT)),
+  }
+  writeFileSync(path.join(ROOT, MANIFEST), JSON.stringify(manifest, null, 2) + '\n', 'utf8')
 
   console.log(`
 下一步：

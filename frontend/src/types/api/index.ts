@@ -35,3 +35,6 @@ export * from "./biz/demoOrder";
 export * from "./biz/demoProduct";
 export * from "./biz/demoCategory";
 export * from "./biz/demoPlan";
+
+// biz 模块
+export * from "./biz/demoTag";

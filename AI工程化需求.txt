@@ -359,7 +359,10 @@ skill 是按 description 匹配自动调起的，command 是敲 `/commit` 才跑
 
 - `.ai-log/` 加进 `init.config.mjs` 的 `EXCLUDE_DIRS` ——
   那是**模板自己的开发历史**，不该被复制进新项目
-  （同 `docs/业务` 的待遇；`EXCLUDE_DIRS` 的语义是**整目录跳过、不复制**）
+  > ⚠️ **这里踩了一个认知错误**（实测抓到的）：我一度把 `EXCLUDE_DIRS` 当成"整目录跳过、不复制"，
+  > 并照此改了注释和文档。**错了** —— `init.mjs` 是**原地转换**，根本没有复制这一步，
+  > `EXCLUDE_DIRS` 只保证"不被占位符替换"。实测：`.ai-log/` 与 `docs/业务/`
+  > **实例化后都还在**。真要不带过去，得在**复制那一步** `--exclude`（已补进 `init-project` skill）。
 - `.claude/settings.local.json` 加进 `.gitignore` —— 个人权限设置优先级**高于**团队设置，
   误提交会覆盖团队约定
 - `skill-lint.mjs` 扩展到检查 `.claude/commands/`（见 §3.16）
@@ -605,6 +608,55 @@ gen_table / gen_table_column        ← 代码生成器就靠这两张
 
 > 已知局限：`.template-init.json` 里**凭据是打码的**，拿不到真值，
 > 所以含 `DB_PASSWORD` 等占位符的文件仍会误报。已写进脚本与 skill。
+
+### 3.25 第三轮实测：其余 6 个 skill ✅
+
+把 `backend-code` / `db-manage` / `troubleshoot` / `sync-ai-layer` / `ai-changelog` /
+`frontend-component` 逐个在跑起来的实例上验了一遍。**六个全过，但抓出 4 个问题。**
+
+**通过的**：
+
+| skill | 怎么验的 | 结果 |
+|---|---|---|
+| `sync-ai-layer` | 实例缺 2 个 skill，跑体检 | ✅ 准确报出落后的 2 个，`--check` exit 1；按报告同步后归零 |
+| `ai-changelog` | 按格式真写一条 | ✅ 目录、文件头、四条字段（含 ✅/❌ 两半）都对 |
+| `db-manage` | `db-query` 查询 + `mysqldump` 备份 | ✅ 1051 行 / 32 张表 |
+| `troubleshoot` | **制造故障**（停后端）走三步判读 | ✅ 正确定位到「后端没起来」 |
+| `backend-code` | 加一条**五处链**的自定义接口 | ✅ `/count` 返回 `code:200 data:1` |
+| `frontend-component` | 核对组件清单与自动导入 | ✅ 表格里 12 个组件全存在，自动导入实证有效 |
+
+**⭐ `backend-code` 顺带实证了那条最高频的铁律**：先**故意不打包**直接重启 jar，
+新接口确实不存在（请求掉进了 `GET /{id}`，报参数类型不匹配）；`mvn install` 之后才通。
+**那条"改了必须重新打包"不是传说，是实测过的。**
+
+**发现并修的 4 个问题**：
+
+**① ⚠️ 我把 `EXCLUDE_DIRS` 的语义搞错了（真错误，影响三处）**
+我一度断定它是"整目录跳过、**不复制**"并照此改了注释、文档、skill。
+**错了** —— `init.mjs` 是**原地转换**，根本没有复制这一步，`walk` 只是扫描/替换用的。
+实测：模板里的 `.ai-log/` 与 `docs/业务/` **实例化后照样在**。
+真要不带过去，只能靠**复制那一步**的 `--exclude`。已在三处改正，
+并把 `init-project` 的复制命令补成 `--exclude=.ai-log --exclude='docs/业务'`（实测有效）。
+
+**② ⚠️ `verify-module` 的"无报错"判据是错的**
+原文写"网络面板没有 4xx / 5xx"。**但若依把业务错误也包成 HTTP 200**，
+真正的错在响应体的 `code` 里 —— 实测 `/count` 返回 200，看着像通了，
+其实掉进了 `GET /{id}` 的参数转换失败。已改为"看响应体的 `code`"。
+
+**③ `troubleshoot` 两处不准确**
+- `select @@port` 判不出"连的是哪个宿主端口" —— `db-query` 走 `docker exec`，
+  拿到的**永远是容器内的 3306**。已改为看容器名。
+- 后端停掉时，**代理返回的是 `500` 而不是连接错误** —— 看 500 容易误判成"后端有 bug"。
+  已补进判读表下面（实测）。
+
+**④ 生成文件的排除路径全写错了**
+`auto-imports.d.ts` 在 `frontend/` **根下**、`components.d.ts` 在 `src/types/` 下，
+而我在 `eslint.config.js` / `.prettierignore` 里按"想当然"写成了 `src/xxx.d.ts` ——
+**排除静默失效**。好在两个文件自带 `/* eslint-disable */` / `/* prettier-ignore */`，
+所以实际影响为零（`lint-ratchet` 基线改前改后都是 728）——**但配置本身是误导的**。已按实际路径改正。
+
+> 教训：**写排除路径前先 `find` 一下实际位置。** 路径写错不会有任何报错，
+> 只会让那条排除悄悄失效。
 
 
 四、待办

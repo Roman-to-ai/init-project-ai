@@ -194,9 +194,15 @@ export const DEFAULTS = Object.fromEntries(VARIABLES.map((v) => [v.key, v.defaul
 export const IGNORE_PLACEHOLDERS = ['UPPER_SNAKE', 'KEY']
 
 /**
- * 不参与替换的路径（相对仓库根）。
- * ⚠️ 语义是**整目录跳过**（`init.mjs` 的 walk 直接 continue），也就是**不会被复制**，
- *    不只是「不做占位符替换」。
+ * 不参与**占位符替换**的路径（相对仓库根）。
+ *
+ * ⚠️ 语义只是「不做替换」，**不是「不复制」**。
+ *    `init.mjs` 是**原地转换**（改名 + 改内容），**没有复制这一步** ——
+ *    新目录是使用者自己 `cp` / `tar` 出来的。
+ *    所以这里列的东西**照样会出现在新项目里**（实测确认：`.ai-log/` 与
+ *    `docs/业务/` 实例化后都还在）。想真的不带过去，得在**复制那一步**排除 ——
+ *    见 `.claude/skills/init-project/SKILL.md` 的命令。
+ *
  * 用最小匹配：只有确实含二进制或生成物的目录才列进来。
  */
 export const EXCLUDE_DIRS = [
@@ -215,6 +221,7 @@ export const EXCLUDE_DIRS = [
   'docs/业务',
   // AI 变更日志：**这个模板自己的开发历史**，不是模板资产。
   // 新项目该从空白开始记自己的（`ai-changelog` skill 会按需创建目录）。
+  // ⚠️ 列在这里只保证「不被替换」；要真的不带过去，复制那步得排除 `--exclude=.ai-log`。
   '.ai-log',
 ]
 

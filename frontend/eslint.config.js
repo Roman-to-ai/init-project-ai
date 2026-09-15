@@ -33,9 +33,12 @@ export default defineConfigWithVueTs(
       '**/dist/**',
       '**/coverage/**',
       '**/node_modules/**',
-      // 自动生成，改了也会被覆盖（.editorconfig 同样排除它们）
-      'src/auto-imports.d.ts',
-      'src/components.d.ts',
+      // 自动生成，改了也会被覆盖。
+      // ⚠️ 路径以**实际位置**为准（`find` 确认过）—— 这两个文件**不在** `src/` 下，
+      //    写错路径的话排除会静默失效。它们自带 `/* eslint-disable */` 兜底，
+      //    所以写错了也不会立刻出问题，只是配置变成了误导。
+      'auto-imports.d.ts',
+      'src/types/components.d.ts',
       // ⚠️ 这个文件含**表达式位置**的模板占位符（`port: @@FRONTEND_PORT@@`），
       //    在模板态下不是合法 TS，解析失败。留着它会让棘轮基线在
       //    「模板态报 1 个解析错误 / 实例态报若干真问题」之间反复跳 ——

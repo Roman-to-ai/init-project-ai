@@ -78,8 +78,11 @@ frontend/src/components/<PascalCase>/index.vue
 项目配了自动导入 —— **`src/components/` 下的组件不需要手动 import**，
 模板里直接写 `<DictTag />` 就行。
 
-> 别去手改 `src/components.d.ts`（自动生成，改了会被覆盖，
-> `.editorconfig` 与 `eslint.config.js` 也都排除了它）。
+> 别去手改自动生成的声明文件，改了会被覆盖 —— 它们是
+> **`auto-imports.d.ts`**（在 `frontend/` 根下）与 **`src/types/components.d.ts`**。
+> ⚠️ 这两个路径**别想当然**：一个不在 `src/` 下、一个在 `src/types/` 下
+> （实测踩过：`eslint.config.js` / `.prettierignore` 里按"想当然"写的路径
+> 全都指不到文件，排除静默失效）。要排除它们先 `find` 一下实际位置。
 
 ---
 

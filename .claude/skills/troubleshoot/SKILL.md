@@ -36,6 +36,10 @@ tail -50 <后端日志>
 | ✗ | ✓ | ✗ | 后端没起来 |
 | 全 ✗ | | | 中间件没起来，或端口全错 |
 
+> ⚠️ **后端停掉时，代理那一格返回的是 `500`，不是连接错误**（实测）。
+> 看到 500 容易以为是"后端内部报错了"，**其实是它根本没起来** ——
+> 别被这个状态码带偏，看后端那一格和 `netstat`。
+
 > ⚠️ **后端 200 不代表是你连的那个后端。** 开发机上常有别的项目占着 8080 ——
 > 症状是**所有路径都 404**。先看 `netstat` 的 PID 是不是你起的进程。
 
@@ -55,10 +59,14 @@ tail -100 <后端日志> | grep -E "ERROR|Caused by|APPLICATION FAILED"
 ### 数据库
 
 ```bash
-# 先确认连的是哪个库（端口错会静默连到别人的）
-node scripts/db-query.mjs "select database(), @@port"
+# 先确认连的是哪个库、哪个容器
+node scripts/db-query.mjs "select database() as 库"
 node scripts/db-query.mjs "show tables like 'sys_%'"
 ```
+
+> ⚠️ **别用 `select @@port` 判断"连的是哪个宿主端口"** —— `db-query` 走 `docker exec`
+> 进容器，拿到的**永远是容器内的 3306**，跟你从宿主连的 3307 不是一回事（实测踩过）。
+> 要确认身份看**容器名**（默认 `<PROJECT_SLUG>-mysql`，`--container` 可覆盖）。
 
 **"表不存在"最常见的原因是 SQL 没导完**，不是表真丢了。
 导 SQL 时**逐条看输出**，别用 `| head` 把错误过滤掉 ——

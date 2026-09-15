@@ -20,14 +20,20 @@ description: 用当前模板起一个新项目——复制模板、实例化占�
 ```bash
 # 在模板仓库的**上一级**执行，别动模板本身
 mkdir -p <新项目目录>
-tar -cf - --exclude=node_modules --exclude=target --exclude=dist --exclude=.git \
+tar -cf - \
+    --exclude=node_modules --exclude=target --exclude=dist --exclude=.git \
+    --exclude=.ai-log --exclude='docs/业务' \
     -C <模板目录> . | tar -xf - -C <新项目目录>
 
 # 复制后立刻确认：新目录是独立的，模板还在原处
 ls <模板目录>/scripts/init.mjs <新项目目录>/scripts/init.mjs
 ```
 
-（`cp` 没有排除选项，所以用 `tar` 管道 —— 少了 `--exclude` 就会白白多拷 350MB。）
+**两类 `--exclude` 的理由不同，都别省**：前一类是依赖与构建产物（350MB+）；
+后一类是**项目自己的历史与生成物**，模板的不该带过去。
+
+> ⚠️ **`EXCLUDE_DIRS` 不负责这件事** —— 它的语义只是"不做占位符替换"
+> （`init.mjs` 是原地转换，没有复制这一步）。真要不带过去，只能靠这里的 `--exclude`。
 
 进去之后**所有命令都在新目录里跑**（下文默认 cwd 是新项目）。
 
@@ -170,8 +176,8 @@ docker exec -i <PROJECT_SLUG>-mysql mysql -uroot -p<DB_PASSWORD> \
 - **前端起不来 / 端口是 80** → Windows 上 80 端口通常要管理员权限，且被占会**静默换到 81**
 - **后端启动类找不到** → 改了 `APP_CLASS` 但没重新 `mvn install`
 - **菜单空白 / 登录失败** → SQL 没导全，或导到了别的库（确认端口是 3307 不是 3306）
-- **`docs/业务/` 是空的** → 正常。它是**生成物**，在 `init.config.mjs` 的 `EXCLUDE_DIRS` 里，
-  不会被复制。用 `node scripts/doc-scan.mjs` 按新项目的实际模块重新生成
+- **`.ai-log/` 或 `docs/业务/` 里有模板的内容** → 复制那步漏了 `--exclude`
+  （见第一步的表格）。删掉它们：那是模板的历史与生成物，新项目该重新生成自己的
 
 ## 汇报
 

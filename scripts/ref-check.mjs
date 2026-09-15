@@ -36,6 +36,13 @@ const has = (name) => argv.includes(name)
 const EXTS = new Set(['.md', '.txt'])
 const SKIP_DIRS = new Set(['node_modules', 'target', 'dist', '.git', 'shots', 'uploadPath'])
 
+/**
+ * 路径里出现这些段就跳过 —— 它们是**构建产物**，源码仓里本来就不存在。
+ * 不跳的话，文档里写「产物在 `frontend/dist/`」这种**完全正确**的话会被报成失效引用。
+ * （实测踩过：`release` skill 里那句就被误报了。）
+ */
+const BUILD_OUTPUT_SEGMENTS = new Set(['dist', 'target', 'node_modules', 'build'])
+
 export function topLevelDirs(root) {
   return new Set(readdirSync(root).filter((n) => statSync(path.join(root, n)).isDirectory()))
 }
@@ -55,7 +62,10 @@ export function refPathsIn(text, top) {
     if (raw.startsWith('/') || raw.startsWith('.')) continue
     if (!raw.includes('/')) continue
     const clean = raw.replace(/[),.;:]+$/, '').replace(/#.*$/, '')
-    if (!top.has(clean.split('/')[0])) continue
+    const segs = clean.split('/')
+    if (!top.has(segs[0])) continue
+    // 构建产物目录跳过 —— 见 BUILD_OUTPUT_SEGMENTS 的说明
+    if (segs.some((s) => BUILD_OUTPUT_SEGMENTS.has(s))) continue
     out.add(clean)
   }
   return out

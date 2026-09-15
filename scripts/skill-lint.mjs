@@ -51,6 +51,15 @@ const ALLOWED_KEYS = new Set(['name', 'description', 'license', 'allowed-tools',
 /** 项目约定的行数上限（docs/ 那条是 400，skill 更严 —— 它每次被完整读入上下文） */
 const MAX_LINES = 200
 
+/**
+ * 长得像斜杠命令、其实是**接口路径前缀**的 token —— 检查时跳过。
+ *
+ * 反引号里的 `/prod-api` 和 `/commit` 在语法上完全一样，但前者是 Vite 的接口前缀、
+ * 后者是斜杠命令。**分不出来**，所以用显式白名单。
+ * 这是一份**已知的、有限的**集合（见 `frontend/.env.*` 与 `SecurityConfig`），不会无限长。
+ */
+const NOT_COMMANDS = new Set(['/dev-api', '/prod-api', '/stage-api', '/profile', '/captchaImage'])
+
 // ──────────────────────────────────────────────────────────────────
 
 /**
@@ -157,6 +166,7 @@ function lint(skillName, text, checkConventions, top) {
   const badRefs = new Set()
   for (const m of body.matchAll(/`\/([a-z][a-z0-9-]*)`/g)) {
     const n = m[1]
+    if (NOT_COMMANDS.has(`/${n}`)) continue
     const ok =
       existsSync(path.join(ROOT, '.claude', 'skills', n)) ||
       existsSync(path.join(ROOT, '.claude', 'commands', `${n}.md`)) ||

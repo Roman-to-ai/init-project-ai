@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="@@JAVA_PACKAGE_ROOT@@.biz.mapper.BizDemoPlanMapper">
+    
+    <resultMap type="BizDemoPlan" id="BizDemoPlanResult">
+        <result property="planId"    column="plan_id"    />
+        <result property="planNo"    column="plan_no"    />
+        <result property="planName"    column="plan_name"    />
+        <result property="planStatus"    column="plan_status"    />
+        <result property="planStart"    column="plan_start"    />
+        <result property="delFlag"    column="del_flag"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <resultMap id="BizDemoPlanBizDemoPlanItemResult" type="BizDemoPlan" extends="BizDemoPlanResult">
+        <collection property="bizDemoPlanItemList" ofType="BizDemoPlanItem" column="plan_id" select="selectBizDemoPlanItemList" />
+    </resultMap>
+
+    <resultMap type="BizDemoPlanItem" id="BizDemoPlanItemResult">
+        <result property="itemId"    column="item_id"    />
+        <result property="planId"    column="plan_id"    />
+        <result property="seqNo"    column="seq_no"    />
+        <result property="materialName"    column="material_name"    />
+        <result property="quantity"    column="quantity"    />
+        <result property="unit"    column="unit"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectBizDemoPlanVo">
+        select plan_id, plan_no, plan_name, plan_status, plan_start, del_flag, create_by, create_time, update_by, update_time, remark from biz_demo_plan
+    </sql>
+
+    <select id="selectBizDemoPlanList" parameterType="BizDemoPlan" resultMap="BizDemoPlanResult">
+        <include refid="selectBizDemoPlanVo"/>
+        <where>  
+            <if test="planNo != null  and planNo != ''"> and plan_no = #{planNo}</if>
+            <if test="planName != null  and planName != ''"> and plan_name like concat('%', #{planName}, '%')</if>
+            <if test="planStatus != null  and planStatus != ''"> and plan_status = #{planStatus}</if>
+            <if test="params.beginPlanStart != null and params.beginPlanStart != '' and params.endPlanStart != null and params.endPlanStart != ''"> and plan_start &gt;= #{params.beginPlanStart} and plan_start &lt; date_add(#{params.endPlanStart}, interval 1 day)</if>
+        </where>
+    </select>
+    
+    <select id="selectBizDemoPlanByPlanId" parameterType="Long" resultMap="BizDemoPlanBizDemoPlanItemResult">
+        select plan_id, plan_no, plan_name, plan_status, plan_start, del_flag, create_by, create_time, update_by, update_time, remark
+        from biz_demo_plan
+        where plan_id = #{planId}
+    </select>
+
+    <select id="selectBizDemoPlanItemList" resultMap="BizDemoPlanItemResult">
+        select item_id, plan_id, seq_no, material_name, quantity, unit, create_by, create_time, update_by, update_time, remark
+        from biz_demo_plan_item
+        where plan_id = #{plan_id}
+    </select>
+
+    <insert id="insertBizDemoPlan" parameterType="BizDemoPlan" useGeneratedKeys="true" keyProperty="planId">
+        insert into biz_demo_plan
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planNo != null and planNo != ''">plan_no,</if>
+            <if test="planName != null">plan_name,</if>
+            <if test="planStatus != null">plan_status,</if>
+            <if test="planStart != null">plan_start,</if>
+            <if test="delFlag != null">del_flag,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="planNo != null and planNo != ''">#{planNo},</if>
+            <if test="planName != null">#{planName},</if>
+            <if test="planStatus != null">#{planStatus},</if>
+            <if test="planStart != null">#{planStart},</if>
+            <if test="delFlag != null">#{delFlag},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBizDemoPlan" parameterType="BizDemoPlan">
+        update biz_demo_plan
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="planNo != null and planNo != ''">plan_no = #{planNo},</if>
+            <if test="planName != null">plan_name = #{planName},</if>
+            <if test="planStatus != null">plan_status = #{planStatus},</if>
+            <if test="planStart != null">plan_start = #{planStart},</if>
+            <if test="delFlag != null">del_flag = #{delFlag},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where plan_id = #{planId}
+    </update>
+
+    <delete id="deleteBizDemoPlanByPlanId" parameterType="Long">
+        delete from biz_demo_plan where plan_id = #{planId}
+    </delete>
+
+    <delete id="deleteBizDemoPlanByPlanIds" parameterType="String">
+        delete from biz_demo_plan where plan_id in 
+        <foreach item="planId" collection="array" open="(" separator="," close=")">
+            #{planId}
+        </foreach>
+    </delete>
+    
+    <delete id="deleteBizDemoPlanItemByPlanIds" parameterType="String">
+        delete from biz_demo_plan_item where plan_id in 
+        <foreach item="planId" collection="array" open="(" separator="," close=")">
+            #{planId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteBizDemoPlanItemByPlanId" parameterType="Long">
+        delete from biz_demo_plan_item where plan_id = #{planId}
+    </delete>
+
+    <insert id="batchBizDemoPlanItem">
+        insert into biz_demo_plan_item( item_id, plan_id, seq_no, material_name, quantity, unit, create_by, create_time, update_by, update_time, remark) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            ( #{item.itemId}, #{item.planId}, #{item.seqNo}, #{item.materialName}, #{item.quantity}, #{item.unit}, #{item.createBy}, #{item.createTime}, #{item.updateBy}, #{item.updateTime}, #{item.remark})
+        </foreach>
+    </insert>
+</mapper>

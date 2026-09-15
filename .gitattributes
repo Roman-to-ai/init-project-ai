@@ -1,0 +1,41 @@
+# ============================================================================
+# 行尾策略：一律不做转换
+# ============================================================================
+# 为什么不用默认的 text=auto：
+#   本仓库的行尾是混杂的 —— auto-imports.d.ts / package.json / App.vue /
+#   settings.ts 的工作区是 LF 而索引是 CRLF；bin/*.bat 是 GBK 编码；
+#   ry.bat 甚至带乱码。一旦让 git 规范化行尾，任何一次 checkout 都会重写
+#   全部行尾，模板→实例的 diff 会被纯噪音淹没，真实改动再也看不出来。
+#
+#   `* -text` = 按字节原样存取。这是**刻意选择**，不是偷懒。
+* -text
+
+# ---- 例外：这两个必须 LF ----
+# shell 脚本带 CRLF 在 Linux 上会直接报 "bad interpreter"，所以显式规范成 LF。
+# （真正需要转换的只有这一族；别扩大范围。）
+*.sh text eol=lf
+
+# ---- 二进制：告诉 git 别做 diff ----
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
+*.jar  binary
+*.zip  binary
+*.gz   binary
+*.7z   binary
+*.xlsx binary
+*.xls  binary
+*.docx binary
+*.doc  binary
+*.pdf  binary
+*.exe  binary
+
+# ---- 生成的锁文件：不要折叠进 diff 统计 ----
+pnpm-lock.yaml -diff linguist-generated

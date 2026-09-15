@@ -1,0 +1,90 @@
+// global transition css
+
+/* fade */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.28s;
+}
+
+.fade-enter-from,
+.fade-leave-active {
+  opacity: 0;
+}
+
+/* fade-transform */
+.fade-transform--move,
+.fade-transform-leave-active,
+.fade-transform-enter-active {
+  transition: all .5s;
+}
+
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* breadcrumb transition */
+.breadcrumb-enter-active,
+.breadcrumb-leave-active {
+  transition: all .5s;
+}
+
+.breadcrumb-enter-from,
+.breadcrumb-leave-active {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.breadcrumb-move {
+  transition: all .5s;
+}
+
+.breadcrumb-leave-active {
+  position: absolute;
+}
+
+/* 黑暗模式下过渡效果 */
+/*
+ * 注：下面 4 条规则原本写的是 background: var(--bg-color[-dark])，
+ * 但这两个变量全项目从未定义过、也没有回退值，按 CSS 规范属于
+ * "invalid at computed-value time" —— 声明会被丢弃，实际等价于 transparent，
+ * 也就是说作者想要的效果从来没生效过。这里显式收敛为 transparent：
+ * 行为与之前完全一致，同时不再留下"看起来在做什么、其实没做"的误导。
+ *
+ * 若将来想让明暗切换的圆形揭示动画带上页面底色，把 transparent 换成
+ * 对应的主题令牌即可（注意会改变动画观感，需单独验证）。
+ */
+::view-transition-new(root), ::view-transition-old(root) {
+  animation: none !important;
+  backface-visibility: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.dark::view-transition-old(root) {
+  z-index: 2147483646;
+  background: transparent;
+}
+
+.dark::view-transition-new(root) {
+  z-index: 1;
+  background: transparent;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+  background: transparent;
+}
+
+::view-transition-new(root) {
+  z-index: 2147483646;
+  background: transparent;
+}

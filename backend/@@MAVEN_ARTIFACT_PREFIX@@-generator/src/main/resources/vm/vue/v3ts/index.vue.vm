@@ -1,0 +1,1421 @@
+<template>
+  <div class="app-container">
+    <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="auto">
+#set($hasCollapsedQuery = false)#foreach($column in $columns)#if($column.query && !$column.common)#set($hasCollapsedQuery = true)#end#end
+#set($hasRichText = false)#foreach($column in $columns)#if($column.list && $column.htmlType == "editor")#set($hasRichText = true)#end#end
+#set($hasTreeSelect = false)#set($hasCascader = false)#foreach($column in $columns)#if($column.htmlType == "treeselect" && $column.refDisplay)#set($hasTreeSelect = true)#end#if($column.htmlType == "cascader")#set($hasCascader = true)#end#end
+#foreach($column in $columns)
+#if($column.query)
+#set($dictType=$column.dictType)
+#set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)
+#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+#else
+#set($comment=$column.columnComment)
+#end
+#if($column.htmlType == "input")
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-input
+          v-model="queryParams.${column.javaField}"
+          placeholder="请输入${comment}"
+          clearable
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+#elseif(($column.htmlType == "select" || $column.htmlType == "radio") && "" != $dictType)
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-select v-model="queryParams.${column.javaField}"#if($column.ruleMultiple) multiple#end placeholder="请选择${comment}" filterable clearable>
+          <el-option
+            v-for="dict in ${dictType}"
+            :key="dict.value"
+            :label="dict.label"
+            :value="dict.value"
+          />
+        </el-select>
+      </el-form-item>
+## 选项来自「写死代码」或「接口」——声明在 script 里，见文件末尾的 ${field}Options。
+## （这里原本是 `&& $dictType` 的分支，但它在 dictType 为空串时为假、上一分支已抢先命中，
+##   是不可达的死代码，所以直接改用。）
+## 注意：查询区**不做 parseInt**，与上面那个字典分支保持一致。
+## 多值列在查询区也是**多选**，值以数组发出去（?tags=1&tags=2 这种重复参数），
+## 后端合成逗号串后由 Mapper 拆开逐个 find_in_set 用 or 连 —— 语义是「**包含任一值**」。
+## 原本这儿没有分支，会落到 #else 兜底退化成文本框、且 Mapper 用 = 等值匹配 —— 逗号串永远等不中。
+#elseif($column.htmlType == "checkbox" && "" != $dictType)
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-select v-model="queryParams.${column.javaField}" multiple filterable placeholder="请选择${comment}" clearable>
+          <el-option
+            v-for="dict in ${dictType}"
+            :key="dict.value"
+            :label="dict.label"
+            :value="dict.value"
+          />
+        </el-select>
+      </el-form-item>
+#elseif($column.htmlType == "checkbox" && ($column.ruleOptionsJs || $column.ruleOptionsApi))
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-select v-model="queryParams.${column.javaField}" multiple filterable placeholder="请选择${comment}" clearable>
+          <el-option v-for="opt in ${column.javaField}Options" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+      </el-form-item>
+#elseif(($column.htmlType == "select" || $column.htmlType == "radio") && ($column.ruleOptionsJs || $column.ruleOptionsApi))
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-select v-model="queryParams.${column.javaField}"#if($column.ruleMultiple) multiple#end placeholder="请选择${comment}" filterable clearable>
+          <el-option
+            v-for="opt in ${column.javaField}Options"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+      </el-form-item>
+#elseif($column.htmlType == "datetime" && $column.queryType != "BETWEEN")
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-date-picker clearable
+          v-model="queryParams.${column.javaField}"
+          type="datetime"
+          value-format="YYYY-MM-DD HH:mm:ss"
+          placeholder="请选择${comment}">
+        </el-date-picker>
+      </el-form-item>
+#elseif($column.htmlType == "date" && $column.queryType != "BETWEEN")
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-date-picker clearable
+          v-model="queryParams.${column.javaField}"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="请选择${comment}">
+        </el-date-picker>
+      </el-form-item>
+#elseif($column.htmlType == "time" && $column.queryType != "BETWEEN")
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-time-picker clearable
+          v-model="queryParams.${column.javaField}"
+          value-format="HH:mm:ss"
+          placeholder="请选择${comment}">
+        </el-time-picker>
+      </el-form-item>
+#elseif(($column.htmlType == "datetime" || $column.htmlType == "date" || $column.htmlType == "time" || $column.htmlType == "month") && $column.queryType == "BETWEEN")
+      <el-form-item label="${comment}" style="width: 308px"#if(!$column.common) v-show="expandQuery"#end>
+#if($column.htmlType == "time")
+## 时间区间用 el-time-picker 的 is-range（绑的同样是 daterange 那份两元数组）
+        <el-time-picker
+          v-model="daterange${AttrName}"
+          is-range
+          value-format="HH:mm:ss"
+          range-separator="-"
+          start-placeholder="开始时间"
+          end-placeholder="结束时间"
+        />
+#elseif($column.htmlType == "month")
+        <el-date-picker
+          v-model="daterange${AttrName}"
+          type="monthrange"
+          value-format="YYYY-MM"
+          range-separator="-"
+          start-placeholder="开始月份"
+          end-placeholder="结束月份"
+        ></el-date-picker>
+#else
+        <el-date-picker
+          v-model="daterange${AttrName}"
+          value-format="YYYY-MM-DD"
+          type="daterange"
+          range-separator="-"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+        ></el-date-picker>
+#end
+      </el-form-item>
+#elseif($column.htmlType == "month" && $column.queryType != "BETWEEN")
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-date-picker clearable
+          v-model="queryParams.${column.javaField}"
+          type="month"
+          value-format="YYYY-MM"
+          placeholder="选择${comment}">
+        </el-date-picker>
+      </el-form-item>
+#elseif($column.htmlType == "year" && $column.queryType != "BETWEEN")
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-date-picker clearable
+          v-model="queryParams.${column.javaField}"
+          type="year"
+          value-format="YYYY"
+          placeholder="选择${comment}">
+        </el-date-picker>
+      </el-form-item>
+#elseif($column.htmlType == "switch")
+## 查询区的开关用「是/否」下拉，**不用 el-switch**。
+## el-switch 只有两个状态、**表达不了「不筛」**：它的值一旦不是 active 也不是 inactive
+## （比如初值 undefined），EP 就会自作主张写回 inactive 值，**并且 emit change** ——
+## 于是用户没碰过筛选，列表就已经被永久加上「等于否」，还不报错。
+## （这个坑是真跑一次生成 + 打开列表才发现的，见模板增强清单.md。）
+## 下拉有真正的空状态：clearable 清空即不筛。值发 '1'/'0'，两种存储都对得上 ——
+## char(1) 直接比 '1'/'0'；tinyint(1) 的字段是 Integer，Spring 把 "1" 绑成 1 也能比。
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-select v-model="queryParams.${column.javaField}" placeholder="请选择${comment}" filterable clearable>
+          <el-option label="是" value="1" />
+          <el-option label="否" value="0" />
+        </el-select>
+      </el-form-item>
+#elseif($column.htmlType == "treeselect")
+## 关联字段用**表格选择器**：弹窗里搜索 + 表格，能看到多列（列由规则的 pickerColumns 指定）。
+## 以前这里没有分支 → 落到兜底文本框 → 拿文本去比一个 bigint 关联 id，实际是坏的。
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <table-select
+          v-model="queryParams.${column.javaField}"
+          api="${column.ruleTreeApi}"
+          value-field="${column.ruleTreeValueField}"
+          label-field="${column.ruleTreeLabelField}"
+          parent-field="${column.ruleTreeParentField}"#if($column.ruleMultiple)
+          multiple#end
+#if($column.rulePickerColumnList.size() > 0)
+          :columns="[#foreach($pc in $column.rulePickerColumnList){ label: '$pc.label', prop: '$pc.prop'#if("$!pc.dictType" != ""), dictType: '$pc.dictType'#end }#if($foreach.count != $column.rulePickerColumnList.size()), #end#end]"
+#end
+          placeholder="请选择${comment}"
+          title="选择${comment}"
+        />
+      </el-form-item>
+#else
+      <!-- ⚠️ 兜底分支，不要删。理由同表单区：没配上就静默丢一个查询条件 -->
+      <el-form-item label="${comment}" prop="${column.javaField}"#if(!$column.common) v-show="expandQuery"#end>
+        <el-input
+          v-model="queryParams.${column.javaField}"
+          placeholder="请输入${comment}"
+          clearable
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+#end
+#end
+#end
+      <el-form-item>
+        <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
+        <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+#if($hasCollapsedQuery)
+        <el-button link type="primary" :icon="expandQuery ? 'ArrowUp' : 'ArrowDown'" @click="toggleExpandQuery">{{ expandQuery ? '收起' : '展开查看更多' }}</el-button>
+#end
+      </el-form-item>
+    </el-form>
+
+    <el-row :gutter="10" class="mb8">
+      <el-col :span="1.5">
+        <el-button
+          type="primary"
+          plain
+          icon="Plus"
+          @click="handleAdd"
+          v-hasPermi="['${permissionPrefix}:add']"
+        >新增</el-button>
+      </el-col>
+#if(!$table.tree)
+## 树表没有多选列，这两个批量按钮永远点不了 —— 不生成。
+## 树表的改/删在**行内操作列**里，每行一个。
+      <el-col :span="1.5">
+        <el-button
+          type="success"
+          plain
+          icon="Edit"
+          :disabled="single"
+          @click="handleUpdate"
+          v-hasPermi="['${permissionPrefix}:edit']"
+        >修改</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="danger"
+          plain
+          icon="Delete"
+          :disabled="multiple"
+          @click="handleDelete"
+          v-hasPermi="['${permissionPrefix}:remove']"
+        >删除</el-button>
+      </el-col>
+#end
+      <el-col :span="1.5">
+        <el-button
+#if($table.tree)
+## 树表用「展开/折叠」代替「导出」—— 列表不分页，展平导出意义不大
+          type="info"
+          plain
+          icon="Sort"
+          @click="toggleExpandAll"
+        >展开/折叠</el-button>
+#else
+          type="warning"
+          plain
+          icon="Download"
+          @click="handleExport"
+          v-hasPermi="['${permissionPrefix}:export']"
+        >导出</el-button>
+#end
+      </el-col>
+      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
+    </el-row>
+
+    <el-table
+#if($table.tree)
+      v-if="refreshTable"
+      :data="${businessName}List"
+      row-key="${treeCode}"
+      :default-expand-all="isExpandAll"
+      :tree-props="{children: 'children', hasChildren: 'hasChildren'}"
+#else
+      v-loading="loading"
+      :data="${businessName}List"
+#end
+      @selection-change="handleSelectionChange"
+    >
+#if(!$table.tree)
+## 树表**不能**有多选列：el-table 的树形缩进固定作用在第一列，
+## 多选列占第一列会把缩进挂到复选框上。若依原生树页（system/dept）同样没有。
+      <el-table-column type="selection" width="55" align="center" />
+#end
+#foreach($column in $columns)
+#set($javaField=$column.javaField)
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)
+#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+#else
+#set($comment=$column.columnComment)
+#end
+## 表头最小宽度：按标签字数估算。
+## 不给宽度的列会被 el-table 均分（列多时每列仅 80px），长标签就会折成两行 ——
+## 而 el-table 的表头行取**所有列的最大高度**，只要有一列换行，整行都变高。
+#set($colMinWidth = $comment.length() * 14 + 40)
+#if($colMinWidth < 100)#set($colMinWidth = 100)#end
+## 多值列（checkbox / 多选）在列表里要并排显示多个标签，按标签字数估的 100px 放不下两个
+## （两个两字标签约 96px，加上单元格 padding 就溢出换行了）—— 放宽到能并排两个标签。
+#if($column.multiValue)#set($colMinWidth = 150)#end
+#if($column.refDisplay && $refDisplayTargets.containsKey($column.ruleDisplayColumn))
+## 配了冗余显示列，且那一列真的存在 —— 列表交给那一列（名称），别把裸 id 也并排显示出来
+#elseif($column.pk)
+      <el-table-column label="${comment}" align="center" prop="${javaField}" min-width="${colMinWidth}" />
+#elseif($column.list && $column.htmlType == "datetime")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" width="180">
+        <template #default="scope">
+          <span>{{ parseTime(scope.row.${javaField}, '{y}-{m}-{d} {h}:{i}:{s}') }}</span>
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "date")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" width="180">
+        <template #default="scope">
+          <span>{{ parseTime(scope.row.${javaField}, '{y}-{m}-{d}') }}</span>
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "time")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" width="180">
+        <template #default="scope">
+          <span>{{ parseTime(scope.row.${javaField}, '{h}:{i}:{s}') }}</span>
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "imageUpload")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" width="100">
+        <template #default="scope">
+## imagePreview 内部是 props.src.split(",")，只认逗号串 —— 而多值列出参已经是数组，这里要拼回去
+          <image-preview :src="(scope.row.${javaField} || []).join(',')" :width="50" :height="50"/>
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "fileUpload")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" min-width="${colMinWidth}">
+        <template #default="scope">
+## 附件列：一个「查看」按钮弹窗列出所有附件，每个附件给下载按钮（见 FileList 组件）
+          <file-list :value="scope.row.${javaField}" label="${comment}"/>
+        </template>
+      </el-table-column>
+#elseif($column.list && "" != $column.dictType)
+      <el-table-column label="${comment}" align="center" prop="${javaField}" min-width="${colMinWidth}">
+        <template #default="scope">
+## DictTag 本来就同时吃数组与逗号串（内部 Array.isArray 分叉），所以多值列不用再单独 split
+          <dict-tag :options="${column.dictType}" :value="scope.row.${javaField}"/>
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "cascader")
+## 用**扁平**那份选项做一层查找 —— 存的是叶子值，正好够
+      <el-table-column label="${comment}" align="center" prop="${javaField}" min-width="${colMinWidth}">
+        <template #default="scope">
+          <dict-tag :options="${javaField}Flat" :value="scope.row.${javaField}"/>
+        </template>
+      </el-table-column>
+#elseif($column.list && ($column.ruleOptionsJs || $column.ruleOptionsApi) && !$column.junction)
+## 选项来自「写死代码」或「接口」。仍然用 dict-tag —— 它的 options 接受任意 {label,value} 数组，
+## 所以三种来源（字典 / 写死 / 接口）在这一处**共用同一个组件**，不用改 DictTag。
+      <el-table-column label="${comment}" align="center" prop="${javaField}" min-width="${colMinWidth}">
+        <template #default="scope">
+          <dict-tag :options="${javaField}Options" :value="scope.row.${javaField}"/>
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "month")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" width="180">
+        <template #default="scope">
+          <span>{{ parseTime(scope.row.${javaField}, '{y}-{m}') }}</span>
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "year")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" width="180">
+        <template #default="scope">
+          <span>{{ parseTime(scope.row.${javaField}, '{y}') }}</span>
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "switch")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" min-width="${colMinWidth}">
+        <template #default="scope">
+          <el-tag :type="scope.row.${javaField} === true ? 'success' : 'info'">{{ scope.row.${javaField} === true ? '是' : '否' }}</el-tag>
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "rate")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" width="180">
+        <template #default="scope">
+          <!-- 用 :model-value 而不是 v-model —— 列表里不该改行数据 -->
+          <el-rate :model-value="scope.row.${javaField}" disabled />
+        </template>
+      </el-table-column>
+#elseif($column.list && $column.htmlType == "editor")
+      <el-table-column label="${comment}" align="center" prop="${javaField}" min-width="${colMinWidth}">
+        <template #default="scope">
+          <el-button v-if="scope.row.${javaField}" link type="primary" @click="handleViewRichText('${comment}', scope.row.${javaField})">查看</el-button>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+#elseif($column.list && ($column.htmlType == "input" || $column.htmlType == "textarea"))
+      <el-table-column label="${comment}" align="center" prop="${javaField}" min-width="${colMinWidth}">
+        <template #default="scope">
+          <el-tooltip v-if="scope.row.${javaField}" placement="top" :show-after="300">
+            <template #content>
+              <div style="max-width: 420px; white-space: pre-wrap; word-break: break-all;">{{ scope.row.${javaField} }}</div>
+            </template>
+            <div class="cell-clamp2">{{ scope.row.${javaField} }}</div>
+          </el-tooltip>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+#elseif($column.list && "" != $javaField)
+#if($table.tree && ${foreach.index} == 1)
+## 树表第一个列表列是树名列，必须**朴素渲染** —— 树形缩进依赖它的样式。
+## 所以树名列必须排在 gen_table_column.sort 的第一位（见 docs/生成器/模板增强清单.md）。
+      <el-table-column label="${comment}" prop="${javaField}" min-width="${colMinWidth}" />
+#else
+      <el-table-column label="${comment}" align="center" prop="${javaField}" min-width="${colMinWidth}" />
+#end
+#end
+#end
+## 操作列固定在右侧。配合上面的 min-width（列多时会横向滚动），
+## 否则一往右滚，「修改/删除」就滑出视野了 —— 而它正是最常用的操作。
+## 宽度按按钮个数算：两个按钮约 140px，开了「生成详情页」多一个「详情」约 190px。
+#set($opWidth = 140)
+#if($genView)#set($opWidth = 190)#end
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" fixed="right" width="${opWidth}">
+        <template #default="scope">
+#if($genView)
+          <el-button link type="primary" icon="View" @click="handleViewData(scope.row)" v-hasPermi="['${permissionPrefix}:query']">详情</el-button>
+#end
+          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['${permissionPrefix}:edit']">修改</el-button>
+#if($table.tree)
+          <el-button link type="primary" icon="Plus" @click="handleAdd(scope.row)" v-hasPermi="['${permissionPrefix}:add']">新增</el-button>
+#end
+          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['${permissionPrefix}:remove']">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    
+#if(!$table.tree)
+## 树表不分页 —— 后端一次返回全量，前端用 proxy.handleTree 拼树
+    <pagination
+      v-show="total>0"
+      :total="total"
+      v-model:page="queryParams.pageNum"
+      v-model:limit="queryParams.pageSize"
+      @pagination="getList"
+    />
+#end
+
+#if($genView)
+    <!-- ${functionName}详情抽屉 -->
+    <${businessName}-view-drawer ref="${businessName}ViewRef" />
+#end
+    <!-- 添加或修改${functionName}对话框 -->
+#if($table.formColNum == 2)
+#set($dialogWidth = "800px")
+#elseif($table.formColNum == 3)
+#set($dialogWidth = "1100px")
+#else
+#set($dialogWidth = "500px")
+#end
+    <el-dialog :title="title" v-model="open" width="${dialogWidth}" append-to-body>
+      <el-form ref="${businessName}Ref" :model="form" :rules="rules" label-width="auto">
+        <el-row>
+#foreach($column in $columns)
+#set($field=$column.javaField)
+#if(($column.insert && !$column.pk) || $column.junction)
+#if(($column.usableColumn) || (!$column.superColumn) || $column.junction)
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)
+#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+#else
+#set($comment=$column.columnComment)
+#end
+#set($dictType=$column.dictType)
+#if($column.junction)
+## 多对多：关联关系在辅助表 $column.ruleJunctionTable 里，这里绑的是**瞬时字段**（id 集合），
+## 选项来自 optionsApi（写死的 ${column.javaField}Options）。名称由提交时反查 + 后端重算。
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${column.ruleIdsField}">
+              <el-select v-model="form.${column.ruleIdsField}" multiple placeholder="请选择${comment}">
+                <el-option v-for="opt in ${column.javaField}Options" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+#elseif($table.tree && "" != $treeParentCode && $column.javaField == $treeParentCode)
+## 树表的「父节点」列用树形选择器。选项由 getTreeselect() 拉回后 handleTree 拼出，
+## 并塞了一个「顶级节点」虚拟根（其 ${treeCode} 为 0），所以父节点存 0 表示顶级。
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${treeParentCode}">
+              <el-tree-select
+                v-model="form.${treeParentCode}"
+                :data="${businessName}Options"
+                :props="{ value: '${treeCode}', label: '${treeName}', children: 'children' }"
+                value-key="${treeCode}"
+                placeholder="请选择${comment}"
+                check-strictly
+              />
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "input")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-input v-model="form.${field}" placeholder="请输入${comment}" />
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "imageUpload")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <!-- 约束来自 validation_rule（JSON）：limit 数量上限（1=单个，>1=多个）、
+                   fileSize 单文件大小(MB)、fileType 允许的扩展名。
+                   没配规则时这些属性**不会生成**，产物与改造前完全一致。
+                   配法：UPDATE gen_table_column SET validation_rule =
+                         '{"limit":5,"fileSize":5,"fileType":"png,jpg"}' WHERE ...
+              -->
+              <image-upload v-model="form.${field}"#if("$!column.ruleLimit" != "") :limit="${column.ruleLimit}"#end#if("$!column.ruleFileSize" != "") :file-size="${column.ruleFileSize}"#end#if($column.ruleFileTypeJs) :file-type="${column.ruleFileTypeJs}"#end/>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "fileUpload")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <!-- 约束来自 validation_rule（JSON）：limit 数量上限（1=单个，>1=多个）、
+                   fileSize 单文件大小(MB)、fileType 允许的扩展名。
+                   没配规则时这些属性**不会生成**，产物与改造前完全一致。
+                   配法：UPDATE gen_table_column SET validation_rule =
+                         '{"limit":5,"fileSize":5,"fileType":"png,jpg"}' WHERE ...
+              -->
+              <file-upload v-model="form.${field}"#if("$!column.ruleLimit" != "") :limit="${column.ruleLimit}"#end#if("$!column.ruleFileSize" != "") :file-size="${column.ruleFileSize}"#end#if($column.ruleFileTypeJs) :file-type="${column.ruleFileTypeJs}"#end/>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "editor")
+          <el-col :span="24">
+            <el-form-item label="${comment}">
+              <editor v-model="form.${field}" :min-height="192"/>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "select" && "" != $dictType)
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-select v-model="form.${field}"#if($column.ruleMultiple) multiple#end placeholder="请选择${comment}">
+                <el-option
+                  v-for="dict in ${dictType}"
+                  :key="dict.value"
+                  :label="dict.label"
+#if($column.javaType == "Integer" || $column.javaType == "Long")
+                  :value="parseInt(dict.value)"
+#else
+                  :value="dict.value"
+#end
+                ></el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "select" && ($column.ruleOptionsJs || $column.ruleOptionsApi))
+## 选项来自「写死代码」或「接口」。表单区对 Integer/Long 字段要 parseInt ——
+## 与上面那个字典分支一致。**查询区不 parseInt，那是两处刻意的差异**，别"统一"掉。
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-select v-model="form.${field}"#if($column.ruleMultiple) multiple#end placeholder="请选择${comment}">
+                <el-option
+                  v-for="opt in ${field}Options"
+                  :key="opt.value"
+                  :label="opt.label"
+#if($column.javaType == "Integer" || $column.javaType == "Long")
+                  :value="parseInt(opt.value)"
+#else
+                  :value="opt.value"
+#end
+                ></el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "checkbox" && "" != $dictType)
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-checkbox-group v-model="form.${field}">
+                <el-checkbox
+                  v-for="dict in ${dictType}"
+                  :key="dict.value"
+                  :label="dict.value">
+                  {{dict.label}}
+                </el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "checkbox" && ($column.ruleOptionsJs || $column.ruleOptionsApi))
+## checkbox 存的是**逗号分隔的多值串**，值永远是字符串，所以不 parseInt
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-checkbox-group v-model="form.${field}">
+                <el-checkbox
+                  v-for="opt in ${field}Options"
+                  :key="opt.value"
+                  :label="opt.value">
+                  {{opt.label}}
+                </el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "radio" && "" != $dictType)
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-radio-group v-model="form.${field}">
+                <el-radio
+                  v-for="dict in ${dictType}"
+                  :key="dict.value"
+#if($column.javaType == "Integer" || $column.javaType == "Long")
+                  :label="parseInt(dict.value)"
+#else
+                  :label="dict.value"
+#end
+                >{{dict.label}}</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "radio" && ($column.ruleOptionsJs || $column.ruleOptionsApi))
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-radio-group v-model="form.${field}">
+                <el-radio
+                  v-for="opt in ${field}Options"
+                  :key="opt.value"
+#if($column.javaType == "Integer" || $column.javaType == "Long")
+                  :label="parseInt(opt.value)"
+#else
+                  :label="opt.value"
+#end
+                >{{opt.label}}</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "datetime")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-date-picker clearable
+                v-model="form.${field}"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                placeholder="请选择${comment}">
+              </el-date-picker>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "date")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-date-picker clearable
+                v-model="form.${field}"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="请选择${comment}">
+              </el-date-picker>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "time")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-time-picker clearable
+                v-model="form.${field}"
+                value-format="HH:mm:ss"
+                placeholder="请选择${comment}">
+              </el-time-picker>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "textarea")
+          <el-col :span="24">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-input v-model="form.${field}" type="textarea" placeholder="请输入内容" />
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "number")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <!-- 数值控件。上下限/步长/小数位来自 validation_rule：
+                   {"min":0,"max":150,"precision":0} 之类。没配就不生成对应属性。
+
+                   ⚠️ 判空用的是 Velocity 的「安静引用」（美元符号后跟叹号，把 null
+                   渲染成空串再跟空串比），**不能图省事写成真值判断** —— Velocity 里
+                   **0 是假值**，那样 min=0 这类配置会被静默吞掉（本项目真实踩过）。
+
+                   ⚠️ 本注释里不要出现「井号 + 指令名」：Velocity 连 HTML 注释里的
+                   指令也会解析，写了会让整个模板解析失败（也真实踩过）。 -->
+              <el-input-number v-model="form.${field}"#if("$!column.ruleMin" != "") :min="${column.ruleMin}"#end#if("$!column.ruleMax" != "") :max="${column.ruleMax}"#end#if("$!column.ruleStep" != "") :step="${column.ruleStep}"#end#if("$!column.rulePrecision" != "") :precision="${column.rulePrecision}"#end placeholder="请输入${comment}" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "month")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-date-picker clearable
+                v-model="form.${field}"
+                type="month"
+                value-format="YYYY-MM"
+                placeholder="请选择${comment}">
+              </el-date-picker>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "year")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-date-picker clearable
+                v-model="form.${field}"
+                type="year"
+                value-format="YYYY"
+                placeholder="请选择${comment}">
+              </el-date-picker>
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "switch")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <!-- 开关直接用布尔（Element Plus 的默认 active/inactive 就是 true/false）。
+                   落到库里 char(1) 的 '1'/'0' 是后端 @FlagValue 的事。 -->
+              <el-switch v-model="form.${field}" />
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "rate")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-rate v-model="form.${field}"#if("$!column.ruleMax" != "") :max="${column.ruleMax}"#end />
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "cascader")
+## 级联选择。选项沿用 treeselect 那套（treeApi 返回**扁平**列表），
+## 页面里用同一份数据做两件事：建树给 el-cascader，保留扁平那份给列表的 dict-tag。
+## emitPath: false —— **只存叶子值**，所以列表用一层查找的 dict-tag 就够。
+## ⚠️ 代价：叶子跨分支重名时区分不了，那种场景请改用 treeselect 或存完整路径。
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-cascader
+                v-model="form.${field}"
+                :options="${field}Tree"
+                :props="{ value: '${column.ruleTreeValueField}', label: '${column.ruleTreeLabelField}', children: 'children', emitPath: false }"
+                placeholder="请选择${comment}"
+                clearable
+              />
+            </el-form-item>
+          </el-col>
+#elseif($column.htmlType == "treeselect")
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <!-- 关联字段用表格选择器（与查询区同一套）：弹窗里搜索 + 表格，能看到多列。
+                   目标带 parentField 时表格是树形的，层级不丢 -->
+              <table-select
+                v-model="form.${field}"#if($column.ruleMultiple) multiple#end
+                api="${column.ruleTreeApi}"
+                value-field="${column.ruleTreeValueField}"
+                label-field="${column.ruleTreeLabelField}"
+                parent-field="${column.ruleTreeParentField}"
+#if($column.rulePickerColumnList.size() > 0)
+                :columns="[#foreach($pc in $column.rulePickerColumnList){ label: '$pc.label', prop: '$pc.prop'#if("$!pc.dictType" != ""), dictType: '$pc.dictType'#end }#if($foreach.count != $column.rulePickerColumnList.size()), #end#end]"
+#end
+                placeholder="请选择${comment}"
+                title="选择${comment}"
+              />
+            </el-form-item>
+          </el-col>
+#else
+          <!-- ⚠️ 兜底分支，不要删。
+               以前这里没有兜底 —— htmlType 没配或拼错时整个 el-form-item 不渲染，
+               字段**静默消失**。「配了模板不认识的 htmlType 字段就没了」那类坑
+               的根源就在这儿。现在退化成普通文本框。
+               注：这段注释里**不能出现那个指令名本身** —— Velocity 连 HTML 注释
+               里的指令也会解析，写了会直接报 "Encountered ... Was expecting"。 -->
+          <el-col :span="${colSpan}">
+            <el-form-item label="${comment}" prop="${field}">
+              <el-input v-model="form.${field}" placeholder="请输入${comment}" />
+            </el-form-item>
+          </el-col>
+#end
+#end
+#end
+#end
+        </el-row>
+#if($table.sub)
+        <el-divider content-position="center">${subTable.functionName}信息</el-divider>
+        <el-row :gutter="10" class="mb8">
+          <el-col :span="1.5">
+            <el-button type="primary" icon="Plus" @click="handleAdd${subClassName}">添加</el-button>
+          </el-col>
+          <el-col :span="1.5">
+            <el-button type="danger" icon="Delete" @click="handleDelete${subClassName}">删除</el-button>
+          </el-col>
+        </el-row>
+        <el-table :data="${subclassName}List" @selection-change="handle${subClassName}SelectionChange" ref="${subclassName}">
+          <el-table-column type="selection" width="50" align="center" />
+          <el-table-column label="序号" width="60">
+            <template #default="{ $index }">
+              {{ $index + 1 }}
+            </template>
+          </el-table-column>
+#foreach($column in $subTable.columns)
+#set($javaField=$column.javaField)
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)
+#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+#else
+#set($comment=$column.columnComment)
+#end
+#if($column.pk || $javaField == ${subTableFkclassName})
+#elseif($column.list && $column.htmlType == "input")
+          <el-table-column label="$comment" prop="${javaField}" width="150">
+            <template #default="scope">
+              <el-input v-model="scope.row.$javaField" placeholder="请输入$comment" />
+            </template>
+          </el-table-column>
+#elseif($column.list && $column.htmlType == "datetime")
+          <el-table-column label="$comment" prop="${javaField}" width="240">
+            <template #default="scope">
+              <el-date-picker clearable
+                v-model="scope.row.$javaField"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                placeholder="请选择$comment">
+              </el-date-picker>
+            </template>
+          </el-table-column>
+#elseif($column.list && $column.htmlType == "date")
+          <el-table-column label="$comment" prop="${javaField}" width="240">
+            <template #default="scope">
+              <el-date-picker clearable
+                v-model="scope.row.$javaField"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="请选择$comment">
+              </el-date-picker>
+            </template>
+          </el-table-column>
+#elseif($column.list && $column.htmlType == "time")
+          <el-table-column label="$comment" prop="${javaField}" width="240">
+            <template #default="scope">
+              <el-time-picker clearable
+                v-model="scope.row.$javaField"
+                value-format="HH:mm:ss"
+                placeholder="请选择$comment">
+              </el-time-picker>
+            </template>
+          </el-table-column>
+#elseif($column.list && ($column.htmlType == "select" || $column.htmlType == "radio") && "" != $column.dictType)
+          <el-table-column label="$comment" prop="${javaField}" width="150">
+            <template #default="scope">
+              <el-select v-model="scope.row.$javaField" placeholder="请选择$comment">
+                <el-option
+                  v-for="dict in $column.dictType"
+                  :key="dict.value"
+                  :label="dict.label"
+                  :value="dict.value"
+                ></el-option>
+              </el-select>
+            </template>
+          </el-table-column>
+## checkbox 在子表原本**连分支都没有、也没有兜底** → 整列静默消失。
+## 这里补上：用多选下拉而不是 checkbox 组 —— 子表列宽只有 150，checkbox 组会换行撑高整行。
+#elseif($column.list && $column.htmlType == "checkbox" && ("" != $column.dictType || $column.ruleOptionsJs || $column.ruleOptionsApi))
+          <el-table-column label="$comment" prop="${javaField}" width="200">
+            <template #default="scope">
+              <el-select v-model="scope.row.$javaField" multiple placeholder="请选择$comment">
+#if("" != $column.dictType)
+                <el-option
+                  v-for="dict in $column.dictType"
+                  :key="dict.value"
+                  :label="dict.label"
+                  :value="dict.value"
+                ></el-option>
+#else
+                <el-option
+                  v-for="opt in ${javaField}Options"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                ></el-option>
+#end
+              </el-select>
+            </template>
+          </el-table-column>
+#elseif($column.list && ($column.htmlType == "select" || $column.htmlType == "radio") && ($column.ruleOptionsJs || $column.ruleOptionsApi))
+## 明细里的选项：写死 / 接口。（子表只在普通表模板里有 —— 树表不分主子表。）
+## 子表里是**行内可编辑的下拉**，值原样用字符串，与上面字典分支一致、不 parseInt。
+## ⚠️ 这里是**新增分支**而不是替换：下面的 `"" == $column.dictType` 分支是**可达的**
+##    （表单区那个同类分支不可达，才可以直接替换），替换会改变"没有任何来源时"的既有行为。
+          <el-table-column label="$comment" prop="${javaField}" width="150">
+            <template #default="scope">
+              <el-select v-model="scope.row.$javaField" placeholder="请选择$comment">
+                <el-option
+                  v-for="opt in ${javaField}Options"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                ></el-option>
+              </el-select>
+            </template>
+          </el-table-column>
+#elseif($column.list && ($column.htmlType == "select" || $column.htmlType == "radio") && "" == $column.dictType)
+          <el-table-column label="$comment" prop="${javaField}" width="150">
+            <template #default="scope">
+              <el-select v-model="scope.row.$javaField" placeholder="请选择$comment">
+                <el-option label="请选择字典生成" value="" />
+              </el-select>
+            </template>
+          </el-table-column>
+#end
+#end
+        </el-table>
+#end
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button type="primary" @click="submitForm">确 定</el-button>
+## 清空：只把表单（含子表）恢复成初始状态，**不关弹窗** —— 关弹窗是「取消」。
+## 字段多的表误点一次就丢一屏输入，所以弹一下确认。
+          <el-button @click="clearForm">清 空</el-button>
+          <el-button @click="cancel">取 消</el-button>
+        </div>
+      </template>
+    </el-dialog>
+#if($hasRichText)
+    <!-- 富文本查看：单元格里放富文本会撑高行且几乎不可读，改用按钮 + 弹窗 -->
+    <el-dialog v-model="richTextDialog.visible" :title="richTextDialog.title" width="800px" append-to-body>
+      <div class="rich-text-body" v-html="richTextDialog.html"></div>
+    </el-dialog>
+#end
+  </div>
+</template>
+
+<script setup lang="ts" name="${BusinessName}">
+#if($table.sub)
+import type { ${ClassName}, ${subClassName}, ${BusinessName}QueryParams } from "@/types/api/${moduleName}/${businessName}"
+#else
+import type { ${ClassName}, ${BusinessName}QueryParams } from "@/types/api/${moduleName}/${businessName}"
+#end
+#if($table.tree)
+import type { TreeSelect } from '@/types/api/common'
+#end
+import { list${BusinessName}, get${BusinessName}, del${BusinessName}, add${BusinessName}, update${BusinessName} } from "@/api/${moduleName}/${businessName}"
+#if($hasTreeSelect || $hasCascader)
+import request from '@/utils/request'
+#end
+#if($genView)
+import ${BusinessName}ViewDrawer from "./view.vue"
+#end
+
+const { proxy } = getCurrentInstance()
+#if(${dicts} != '')
+#set($dictsNoSymbol=$dicts.replace("'", ""))
+const { ${dictsNoSymbol} } = useDict(${dicts})
+#end
+## 选择类控件的选项（写死代码 / 接口 两种来源）。字典那种由上面的 useDict 提供，不在这里。
+## 变量名用 ${field}Options，与 treeselect 生成的那份保持一致。
+## 一个字段只声明一次：同时配了 options 和 optionsApi 时**写死优先**。
+#foreach($column in $columns)
+#if($column.ruleOptionsJs)
+const ${column.javaField}Options = $column.ruleOptionsJs
+#elseif($column.ruleOptionsApi)
+const ${column.javaField}Options = useApiOptions('$column.ruleOptionsApi', '$column.ruleOptionLabel', '$column.ruleOptionValue')
+#end
+#end
+#if($table.sub)
+#foreach($column in $subTable.columns)
+#if($column.ruleOptionsJs)
+const ${column.javaField}Options = $column.ruleOptionsJs
+#elseif($column.ruleOptionsApi)
+const ${column.javaField}Options = useApiOptions('$column.ruleOptionsApi', '$column.ruleOptionLabel', '$column.ruleOptionValue')
+#end
+#end
+#end
+
+const ${businessName}List = ref<${ClassName}[]>([])
+#if($table.tree)
+/** 父节点下拉的选项（含一个虚拟顶级节点） */
+const ${businessName}Options = ref<TreeSelect[]>([])
+#end
+#if($table.sub)
+const ${subclassName}List = ref<${subClassName}[]>([])
+#end
+const open = ref<boolean>(false)
+const loading = ref<boolean>(true)
+const showSearch = ref<boolean>(true)
+#if($hasRichText)
+/** 查看富文本内容。
+ *  用 v-html 渲染，依赖后端 HTMLFilter 在入库时已过滤（默认开启，见 @@MAVEN_ARTIFACT_PREFIX@@-common 的 HTMLFilter）。 */
+const richTextDialog = reactive({ visible: false, title: '', html: '' })
+function handleViewRichText(title: string, html: string) {
+  richTextDialog.title = title
+  richTextDialog.html = html || ''
+  richTextDialog.visible = true
+}
+#end
+#if($hasCollapsedQuery)
+// 「展开查看更多」开关。控制非常用查询条件的显隐（模板里用 v-show 挂在 el-form-item 上，
+// 而不是 v-if —— 这样 resetQuery 的 resetForm 仍能收集到被折叠的字段，
+// 否则会出现「看不见但仍在生效」的筛选条件）
+const expandQuery = ref<boolean>(false)
+#end
+const ids = ref<number[]>([])
+#if($table.sub)
+const checked${subClassName} = ref<number[]>([])
+#end
+const single = ref<boolean>(true)
+const multiple = ref<boolean>(true)
+const total = ref<number>(0)
+const title = ref<string>("")
+#if($table.tree)
+const isExpandAll = ref<boolean>(true)
+## 展开/折叠要靠**重建表格**才生效 —— default-expand-all 是初始化属性，改它不会重渲染
+const refreshTable = ref<boolean>(true)
+#end
+#foreach ($column in $columns)
+#if(($column.htmlType == "datetime" || $column.htmlType == "date" || $column.htmlType == "time" || $column.htmlType == "month") && $column.queryType == "BETWEEN")
+#set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+const daterange${AttrName} = ref<string[]>([])
+#end
+#end
+
+const data = reactive({
+  form: {} as ${ClassName},
+  queryParams: {
+    pageNum: 1,
+    pageSize: 10,
+    #foreach ($column in $columns)
+#if($column.query)
+#if($column.multiSelectQuery)
+## 查询区出多选（有选项来源的多值列）→ 初值是数组；tansParams 对空数组不发任何参数，等于没筛
+    $column.javaField: []#if($foreach.count != $columns.size()),#end
+#else
+    $column.javaField: undefined#if($foreach.count != $columns.size()),#end
+#end
+#end
+#end
+  } as ${BusinessName}QueryParams,
+  rules: {
+    #foreach ($column in $columns)
+#if($column.required || $column.rulePattern)
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)
+#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+#else
+#set($comment=$column.columnComment)
+#end
+    $column.javaField: [
+#if($column.required)
+      { required: true, message: "$comment不能为空", trigger: #if($column.htmlType == "select" || $column.htmlType == "radio" || $column.htmlType == "treeselect" || $column.htmlType == "checkbox")"change"#else"blur"#end }#if($column.rulePattern),#end
+#end
+#if($column.rulePattern)
+      { pattern: new RegExp($column.rulePatternJs), message: $column.rulePatternMessageJs, trigger: "blur" }
+#end
+    ]#if($foreach.count != $columns.size()),#end
+#end
+#end
+  }
+})
+
+const { queryParams, form, rules } = toRefs(data)
+
+#if($hasCollapsedQuery)
+/** 展开/收起非常用查询条件 */
+function toggleExpandQuery() {
+  expandQuery.value = !expandQuery.value
+  // 右侧 RightToolbar 的放大镜在收起/展开整个搜索区时，会在 el-form 上留下内联的
+  // max-height 且不保证清理掉（它的 setTimeout 调度在双层 requestAnimationFrame 之外，
+  // 存在竞态）。而本页的「展开查看更多」会改变表单高度，一旦那个过期的 max-height 还在，
+  // 新增的那一行就会被截断、点了没反应。这里主动清一次，代价可忽略。
+  nextTick(() => {
+    // 取 el-form 的根元素。**必须走 proxy.$refs** —— 模板里 ref="queryRef" 并不会
+    // 在 <script setup> 里自动生成一个 queryRef 变量（除非显式 const queryRef = ref()），
+    // 直接写 queryRef.value 会抛 ReferenceError。上游各页面统一用 proxy.$refs["xxx"]。
+    const form = (proxy?.$refs["queryRef"] as { $el?: HTMLElement } | undefined)?.$el
+    if (form && form.style.maxHeight) {
+      form.style.maxHeight = ''
+      form.style.overflow = ''
+      form.style.transition = ''
+      form.style.opacity = ''
+    }
+  })
+}
+#end
+
+/** 查询${functionName}列表 */
+function getList() {
+  loading.value = true
+#foreach ($column in $columns)
+#if(($column.htmlType == "datetime" || $column.htmlType == "date" || $column.htmlType == "time" || $column.htmlType == "month") && $column.queryType == "BETWEEN")
+  queryParams.value.params = {}
+#break
+#end
+#end
+#foreach ($column in $columns)
+#if(($column.htmlType == "datetime" || $column.htmlType == "date" || $column.htmlType == "time" || $column.htmlType == "month") && $column.queryType == "BETWEEN")
+#set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+  if (daterange${AttrName}.value.length > 0) {
+    queryParams.value.params["begin${AttrName}"] = daterange${AttrName}.value[0]
+    queryParams.value.params["end${AttrName}"] = daterange${AttrName}.value[1]
+  }
+#end
+#end
+  list${BusinessName}(queryParams.value).then(response => {
+#if($table.tree)
+## 树表后端返回 AjaxResult：全量数组在 `data` 里，**没有 rows/total** —— 所以这里不能走单表那套。
+## 少了这个分支的产物会 `= undefined`，表格整片空白（且不报错）。
+    ${businessName}List.value = proxy.handleTree(response.data, "${treeCode}", "${treeParentCode}")
+#else
+    ${businessName}List.value = response.rows
+    total.value = response.total
+#end
+    loading.value = false
+  })
+}
+
+/** 取消按钮 */
+function cancel() {
+  open.value = false
+  reset()
+}
+
+/** 清空按钮操作：不关弹窗，只把字段（含子表）恢复成初始状态。
+ *  **文本字段写空串而不是 null** —— RuoYi 的 update 是「只写非 null 字段」的部分更新，
+ *  留在 null 的话点确定时老值会**静默保留**（界面上看着清了、库里没清）。
+ *  数字/日期类没法这么办（只吃 null，而 null 会被跳过），仍是保留原值。
+ *  **保留主键** —— 编辑态下清空是「把这条记录抹掉重填」，清完点确定仍更新这条，
+ *  而不是静默变成新增（标题还写着「修改」却插了一条，那太意外了）。 */
+function clearForm() {
+  proxy.#[[$modal]]#.confirm('确认清空已填内容？').then(() => {
+    const _${pkColumn.javaField} = form.value.${pkColumn.javaField}
+    reset()
+    form.value.${pkColumn.javaField} = _${pkColumn.javaField}
+## 与弹窗表单的字段循环**用同一个判据**，保证只碰「表单里真实存在的字段」。
+## 换成遍历 $columns 就会把 del_flag / create_by 这些没渲染、is_insert=0 的列也写成空串 ——
+## del_flag 变空串后记录会直接从列表里消失。
+#foreach($column in $columns)
+#if($column.insert && !$column.pk)
+#if(($column.usableColumn) || (!$column.superColumn))
+#if($column.javaType == "String" && !$column.multiValue && $column.htmlType != "switch")
+    form.value.$column.javaField = ''
+#end
+#end
+#end
+#end
+  }).catch(() => {})
+}
+
+/** 表单重置 */
+function reset() {
+  form.value = {
+#foreach ($column in $columns)
+#if($column.junction)
+## 多对多的 id 集合存在辅助表里（瞬时字段），初值给空数组
+    $column.ruleIdsField: []#if($foreach.count != $columns.size()),#end
+#elseif($column.multiValue)
+## 多值字段（含图片/附件）：控件的 v-model 要数组，后端出参也是数组（见 @MultiValue）
+    $column.javaField: []#if($foreach.count != $columns.size()),#end
+#elseif($column.htmlType == "switch")
+## 开关用布尔：@FlagValue 负责与库里 char(1) 的 '1'/'0' 互转
+    $column.javaField: false#if($foreach.count != $columns.size()),#end
+#else
+    $column.javaField: null#if($foreach.count != $columns.size()),#end
+#end
+#end
+  }
+#if($table.sub)
+  ${subclassName}List.value = []
+#end
+  proxy.resetForm("${businessName}Ref")
+}
+
+/** 搜索按钮操作 */
+function handleQuery() {
+  queryParams.value.pageNum = 1
+  getList()
+}
+
+/** 重置按钮操作 */
+function resetQuery() {
+#foreach ($column in $columns)
+#if(($column.htmlType == "datetime" || $column.htmlType == "date" || $column.htmlType == "time" || $column.htmlType == "month") && $column.queryType == "BETWEEN")
+#set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+  daterange${AttrName}.value = []
+#end
+#end
+  proxy.resetForm("queryRef")
+  handleQuery()
+}
+
+/** 多选框选中数据 */
+function handleSelectionChange(selection: ${ClassName}[]) {
+  ids.value = selection.map(item => item.${pkColumn.javaField})
+  single.value = selection.length != 1
+  multiple.value = !selection.length
+}
+
+#if($hasCascader)
+#foreach($column in $columns)
+#if($column.htmlType == "cascader")
+/** 「${column.columnComment}」的级联选项 —— 拉**扁平**列表，一份建树、一份拍平 */
+const ${column.javaField}Options = ref<any[]>([])
+const ${column.javaField}Tree = computed(() => proxy.handleTree(${column.javaField}Options.value, "${column.ruleTreeValueField}", "${column.ruleTreeParentField}") || [])
+const ${column.javaField}Flat = computed(() => ${column.javaField}Options.value.map((it: any) => ({ label: it["${column.ruleTreeLabelField}"], value: String(it["${column.ruleTreeValueField}"]) })))
+request({ url: "${column.ruleTreeApi}", method: "get" }).then((res: any) => {
+  ${column.javaField}Options.value = (res && (res.data || res.rows)) || []
+})
+#end
+#end
+#end
+#if($hasTreeSelect)
+#foreach($column in $columns)
+#if($column.htmlType == "treeselect")
+#if($column.refDisplay)
+## 查询区与表单区的控件是**表格选择器**（组件自己拉数据），所以这份选项只剩一个用途：
+## 提交时把选中的 id 反查成名称写进显示列 —— 所以只要一份扁平列表，不用建树。
+## （形状照 cascader 的 Flat：{label,value}，直接喂 selectDictLabel）
+const ${column.javaField}Raw = ref<any[]>([])
+const ${column.javaField}Flat = computed(() => ${column.javaField}Raw.value.map((it: any) => ({ label: it["${column.ruleRefLabelField}"], value: String(it["${column.ruleRefValueField}"]) })))
+function load${column.attrName}Options() {
+  request({ url: "${column.ruleTreeApi}", method: "get" }).then((res: any) => {
+    ${column.javaField}Raw.value = (res && (res.data || res.rows)) || []
+  })
+}
+#end
+#end
+#end
+#end
+
+/** 新增按钮操作 */
+#if($table.tree)
+/** 拉全量后拼树，并塞一个「顶级节点」虚拟根（${treeCode} 为 0） */
+function getTreeselect() {
+  list${BusinessName}().then(response => {
+    ${businessName}Options.value = []
+    const data = { ${treeCode}: 0, ${treeName}: '顶级节点', children: [] }
+    data.children = proxy.handleTree(response.data, "${treeCode}", "${treeParentCode}")
+    ${businessName}Options.value.push(data)
+  })
+}
+
+/** 展开/折叠 */
+function toggleExpandAll() {
+  refreshTable.value = false
+  isExpandAll.value = !isExpandAll.value
+  nextTick(() => {
+    refreshTable.value = true
+  })
+}
+
+/** 树表的新增带 row —— 从某一行的「新增」点进来时预置父节点 */
+function handleAdd(row: ${ClassName}) {
+  reset()
+#if($hasTreeSelect)
+#foreach($column in $columns)
+#if($column.htmlType == "treeselect")
+  load${column.attrName}Options()
+#end
+#end
+#end
+  getTreeselect()
+  if (row != null && row.${treeCode}) {
+    form.value.${treeParentCode} = row.${treeCode}
+  } else {
+    form.value.${treeParentCode} = 0
+  }
+  open.value = true
+  title.value = "添加${functionName}"
+}
+#else
+function handleAdd() {
+  reset()
+#if($hasTreeSelect)
+#foreach($column in $columns)
+#if($column.htmlType == "treeselect")
+  load${column.attrName}Options()
+#end
+#end
+#end
+  open.value = true
+  title.value = "添加${functionName}"
+}
+#end
+
+/** 修改按钮操作 */
+function handleUpdate(row: ${ClassName}) {
+  reset()
+#if($hasTreeSelect)
+#foreach($column in $columns)
+#if($column.htmlType == "treeselect")
+  load${column.attrName}Options()
+#end
+#end
+#end
+#if($table.tree)
+## 直接点「修改」（没先点过「新增」）时，父节点下拉的选项还没拉过 —— 不补这一行会是空下拉
+  getTreeselect()
+#end
+  const _${pkColumn.javaField} = row.${pkColumn.javaField} || ids.value[0]
+  get${BusinessName}(_${pkColumn.javaField}).then(response => {
+    form.value = response.data!
+## 多值字段这里**什么都不用做**：@MultiValue 的出参就是数组。
+## （旧模板在这一层 split(",") 且没有 null 兜底 —— 后端是 null 时直接 TypeError。）
+#if($table.sub)
+    ${subclassName}List.value = response.data?.${subclassName}List ?? []
+#end
+    open.value = true
+    title.value = "修改${functionName}"
+  })
+}
+
+/** 提交按钮 */
+function submitForm() {
+  proxy.#[[$]]#refs["${businessName}Ref"].validate((valid: boolean) => {
+    if (valid) {
+## 多值字段直接发数组、开关直接发布尔，后端 @MultiValue / @FlagValue 负责转成存储形状。
+## 这里原本有一层 join(",")，去掉它才是「线格式按语义给」。
+#foreach($column in $columns)
+#if($column.junction)
+## 多对多：名称最终由后端按辅助表重算（refresh 语句），这份只为提交后的即时状态
+      form.value.${column.ruleDisplayColumn} = (form.value.${column.ruleIdsField} || []).map((v: any) => proxy.selectDictLabel(${column.javaField}Options.value, v)).join(',')
+#end
+#if($column.refDisplay && ($column.htmlType == "treeselect" || $column.ruleOptionsJs || $column.ruleOptionsApi))
+## 冗余显示列：把选中的 id 反查成名称写进去。
+## 后端保存时会用 SQL 再算一遍（那条是权威），这里写一遍是为了**提交后的即时状态也对** ——
+## 此时页面上的选项早就加载好了（treeselect 在打开弹窗时就拉，接口来源的在页面加载时拉）。
+#if($column.htmlType == "treeselect")
+#set($refOptionRef = "${column.javaField}Flat.value")
+#elseif($column.ruleOptionsApi)
+#set($refOptionRef = "${column.javaField}Options.value")
+#else
+## ⚠️ 写死的 options 生成的是**普通数组**（不是 ref），带 `.value` 会取到 undefined
+#set($refOptionRef = "${column.javaField}Options")
+#end
+#if($column.multiValue)
+      form.value.${column.ruleDisplayColumn} = (form.value.${column.javaField} || []).map((v: any) => proxy.selectDictLabel($refOptionRef, v)).join(',')
+#else
+      form.value.${column.ruleDisplayColumn} = proxy.selectDictLabel($refOptionRef, form.value.${column.javaField}) || ''
+#end
+#end
+#end
+#if($table.sub)
+      form.value.${subclassName}List = ${subclassName}List.value
+#end
+      if (form.value.${pkColumn.javaField} != null) {
+        update${BusinessName}(form.value).then(() => {
+          proxy.#[[$modal]]#.msgSuccess("修改成功")
+          open.value = false
+          getList()
+        })
+      } else {
+        add${BusinessName}(form.value).then(() => {
+          proxy.#[[$modal]]#.msgSuccess("新增成功")
+          open.value = false
+          getList()
+        })
+      }
+    }
+  })
+}
+
+/** 删除按钮操作 */
+function handleDelete(row: ${ClassName}) {
+  const _${pkColumn.javaField}s = row.${pkColumn.javaField} || ids.value
+  proxy.#[[$modal]]#.confirm('是否确认删除${functionName}编号为"' + _${pkColumn.javaField}s + '"的数据项？').then(function() {
+    return del${BusinessName}(_${pkColumn.javaField}s)
+  }).then(() => {
+    getList()
+    proxy.#[[$modal]]#.msgSuccess("删除成功")
+  }).catch(() => {})
+}
+
+#if($table.sub)
+/** ${subTable.functionName}添加按钮操作 */
+function handleAdd${subClassName}() {
+  let obj: ${subClassName} = {}
+#foreach($column in $subTable.columns)
+#if($column.pk || $column.javaField == ${subTableFkclassName})
+#elseif($column.list && "" != $javaField)
+#if($column.multiValue)
+## 多选下拉/多选框的 v-model 必须是数组：给 undefined 会在 EP 内部炸（它要对值做 slice）
+  obj.$column.javaField = []
+#else
+  obj.$column.javaField = undefined
+#end
+#end
+#end
+  ${subclassName}List.value.push(obj)
+}
+
+/** ${subTable.functionName}删除按钮操作 */
+function handleDelete${subClassName}() {
+  if (checked${subClassName}.value.length == 0) {
+    proxy.#[[$modal]]#.msgError("请先选择要删除的${subTable.functionName}数据")
+  } else {
+    const ${subclassName}s = ${subclassName}List.value
+    const checked${subClassName}s = checked${subClassName}.value
+    ${subclassName}List.value = ${subclassName}s.filter(function(item: any) {
+      return checked${subClassName}s.indexOf(item.index) == -1
+    })
+  }
+}
+
+/** 复选框选中数据 */
+function handle${subClassName}SelectionChange(selection: any[]) {
+  checked${subClassName}.value = selection.map(item => item.index)
+}
+
+#end
+#if($genView)
+/** 详情按钮操作 */
+function handleViewData(row: ${ClassName}) {
+  proxy.#[[$]]#refs["${businessName}ViewRef"].open(row.${pkColumn.javaField})
+}
+
+#end
+/** 导出按钮操作 */
+function handleExport() {
+  proxy.download('${moduleName}/${businessName}/export', {
+    ...queryParams.value
+  }, `${businessName}_#[[${new Date().getTime()}]]#.xlsx`)
+}
+
+getList()
+</script>
+
+<style scoped lang="scss">
+/* 长文本单元格：最多两行，超出用省略号。完整内容由 el-tooltip 展示。
+   注意 tooltip 的 popper 是 teleport 到 body 的，scoped 样式够不到它，
+   所以那段宽度/换行控制写在列定义的**内联 style** 上。 */
+.cell-clamp2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 富文本查看弹窗。v-html 的内容不会被 scoped 加属性，内部元素要用 :deep() */
+.rich-text-body {
+  max-height: 60vh;
+  overflow: auto;
+  line-height: 1.7;
+
+  :deep(img) {
+    max-width: 100%;
+  }
+}
+</style>

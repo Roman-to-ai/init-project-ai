@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/doc-scan.mjs *)",
+      "Bash(node scripts/typecheck.mjs *)",
+      "Bash(node scripts/init.mjs --check *)",
+      "Bash(node scripts/templatize.mjs --dry-run *)",
+      "Bash(node scripts/element-plus-scan.mjs *)",
+      "Bash(node scripts/skill-lint.mjs *)",
+      "Bash(node scripts/db-query.mjs *)",
+      "Bash(node scripts/lint-ratchet.mjs *)",
+      "Bash(node scripts/ai-layer-check.mjs *)",
+      "Bash(netstat *)"
+    ],
+    "ask": [
+      "Bash(docker exec *)"
+    ]
+  },
+
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    }
+  },
+
+  "enabledPlugins": {
+    "commit-commands@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  }
+}

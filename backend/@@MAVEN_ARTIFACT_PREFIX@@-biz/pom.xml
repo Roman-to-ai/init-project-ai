@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>@@MAVEN_ARTIFACT_PREFIX@@</artifactId>
+        <groupId>@@JAVA_PACKAGE_ROOT@@</groupId>
+        <version>3.9.2</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>@@MAVEN_ARTIFACT_PREFIX@@-biz</artifactId>
+
+    <description>
+        biz 业务模块 —— 新业务代码放这里，别散在 @@MAVEN_ARTIFACT_PREFIX@@-system 里
+    </description>
+
+    <dependencies>
+
+        <!--
+          只依赖 @@MAVEN_ARTIFACT_PREFIX@@-common 就够了。它不是"最小依赖"的将就，而是照抄
+          @@MAVEN_ARTIFACT_PREFIX@@-generator 的既有做法 —— 生成器自带 GenController（Controller 就在
+          模块内），依赖也只有 common + velocity + druid。生成的 Controller 模板
+          （vm/java/controller.java.vm）import 的集合与之完全一致，全在模块内。
+
+          刻意**不加 @@MAVEN_ARTIFACT_PREFIX@@-framework**：用不上，还会把 druid / kaptcha / oshi
+          一起拖进来。
+        -->
+        <dependency>
+            <groupId>@@JAVA_PACKAGE_ROOT@@</groupId>
+            <artifactId>@@MAVEN_ARTIFACT_PREFIX@@-common</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>

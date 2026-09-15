@@ -1,0 +1,139 @@
+# 本项目本地开发依赖（后端所需：MySQL + Redis；MinIO 可选）
+#
+#   docker compose up -d        启动
+#   docker compose down         停止（保留数据）
+#   docker compose down -v      停止并删除数据卷（清库重来）
+#
+# 端口只绑定 127.0.0.1，不对局域网暴露。若需从其他机器访问，改成 "3307:3306"。
+#
+# ⚠️⚠️ **同机上跑多个实例时，有两条隔离边界，缺一不可** ——
+#    踩过一次真事故（2026-09-15）：只做了第 ② 条，结果新实例 `up` 时把
+#    另一个实例的容器当成**孤儿容器删掉了**（数据没丢，但那个项目被搞停）。
+#
+#    ① **compose 项目名**（下面的 `name:`）
+#       不写的话，compose 默认取 compose 文件所在**目录名** —— 而每个实例的
+#       compose 都在 `<项目>/deploy/` 下，所以**所有实例的项目名都是 `deploy`**！
+#       同一个项目名意味着"这些容器都归我管"，于是 up 一个会删掉另一个的容器。
+#
+#    ② **数据卷名**（下方 volumes 段）
+#       共用卷名会**静默共用同一个数据库**。
+#
+#    两处都用 `@@PROJECT_SLUG@@` 展开，换项目时才真正隔离。
+#    ⚠️ 改 `name:` 会连带换掉卷名前缀（`<项目名>_<卷名>`）—— **已有数据的实例
+#       不要随便改**，那会让它认不出原来的卷；新实例则务必从第一刻就带上。
+
+name: @@PROJECT_SLUG@@
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: @@PROJECT_SLUG@@-mysql
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: "@@DB_PASSWORD@@"
+      MYSQL_DATABASE: "@@DB_NAME@@"
+    # 字符集对齐 DDL；时区由 TZ 环境变量处理
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    ports:
+      - "127.0.0.1:@@MYSQL_PORT@@:3306"
+    volumes:
+      - @@PROJECT_SLUG@@-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p@@DB_PASSWORD@@"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: @@PROJECT_SLUG@@-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:@@REDIS_PORT@@:6379"
+    volumes:
+      - @@PROJECT_SLUG@@-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # ── 对象存储（可选）─────────────────────────────────────────────
+  # 后端 file.storage.type=local 时它只是个闲置容器，不影响任何事。
+  # 不需要对象存储就整段删掉：minio + minio-init 两个服务，以及 volumes 里的
+  # @@PROJECT_SLUG@@-minio-data —— 同时把 @@MAVEN_ARTIFACT_PREFIX@@-admin/pom.xml 里的
+  # @@MAVEN_ARTIFACT_PREFIX@@-storage-minio 依赖删掉，SDK 就不会被下载。
+  #
+  # 9000 = S3 API（后端连这个），9001 = 控制台（浏览器用）
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: @@PROJECT_SLUG@@-minio
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      # 与后端用同名环境变量：shell 里 export 一次，两边同时生效
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:-@@MINIO_ACCESS_KEY@@}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:-@@MINIO_SECRET_KEY@@}"
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "127.0.0.1:@@MINIO_PORT@@:9000"
+      - "127.0.0.1:@@MINIO_CONSOLE_PORT@@:9001"
+    volumes:
+      - @@PROJECT_SLUG@@-minio-data:/data
+    healthcheck:
+      # 这个镜像里同时有 mc 和 curl（实测 RELEASE.2025-04-22）。用 mc 最准最轻。
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  # 一次性容器：建桶后退出。等价于各家编排里的 init container。
+  #
+  # ⚠️ restart 必须是 "no" —— 本文件里**唯一**不用 unless-stopped 的服务。
+  #    unless-stopped 会让它无限重启（每次都"成功退出"再被拉起来）。
+  #    那条约定是给长驻服务的，一次性容器不适用。
+  #
+  # 为什么由它建桶而不是后端启动时建：建桶需要管理权限，后端来建就得让后端持 root
+  # 凭据；而且文件存储是旁路能力，不该让 MinIO 抖动阻断后台启动。
+  #
+  # ⚠️ 桶保持**私有** —— 绝不要加 mc anonymous set download。
+  #    读全部走后端的 /profile/** 代理，开公共读等于绕过匿名放行范围与防盗链。
+  #
+  # 排查：上传报 NoSuchBucket 时，看 docker ps -a | grep minio-init 的退出码。
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    container_name: @@PROJECT_SLUG@@-minio-init
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_started
+    # 用 exec 形式 + 块标量：脚本直接交给 sh -c，不必嵌套引号。
+    #
+    # ⚠️ 变量必须写 "$$" —— compose 会在**宿主机**上先把单个 $ 插值掉，
+    #    于是凭据变成空串、mc 会「成功」建立别名然后建桶 Access Denied。
+    #    $$ 转义后 compose 原样输出 $，由容器里的 sh 展开。（这个坑实跑才发现。）
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          echo '等待 MinIO 就绪...'
+          sleep 2
+        done
+        mc mb --ignore-existing local/@@PROJECT_SLUG@@-files
+        echo '桶 @@PROJECT_SLUG@@-files 就绪'
+    environment:
+      TZ: Asia/Shanghai
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:-@@MINIO_ACCESS_KEY@@}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:-@@MINIO_SECRET_KEY@@}"
+
+volumes:
+  @@PROJECT_SLUG@@-mysql-data:
+  @@PROJECT_SLUG@@-redis-data:
+  @@PROJECT_SLUG@@-minio-data:

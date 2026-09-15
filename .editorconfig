@@ -1,0 +1,46 @@
+# 编辑器统一配置
+#
+# ── 关于 end_of_line（重要，别照抄别处的写法）────────────────────
+# 本仓库的**行尾本来是混杂的**，`.gitattributes` 里专门记了这件事：
+# 有些文件工作区是 LF 而索引是 CRLF，`git diff` 常年被纯行尾噪音淹没，
+# 「真实改动再也看不出来」。
+#
+# 这里规定 `lf` 是为了**逐步收敛**这个问题，不是要一次性重写全部文件：
+# editorconfig 只在你**保存**某个文件时生效，所以是「编辑到哪个文件、
+# 哪个文件才归正」，不会像 `git` 做行尾转换那样一次性重写 25000 个文件。
+#
+# 例外：`.bat` / `.cmd` 必须是 CRLF，Windows 批处理认这个。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.java]
+indent_size = 4
+
+[*.{xml,yml,yaml,xsd}]
+indent_size = 2
+
+# Markdown 行尾的两个空格是「换行」，不能裁
+[*.md]
+trim_trailing_whitespace = false
+
+# ⚠️ 上游遗留：这两个是 GBK 编码，别按 UTF-8 存，否则中文注释全乱码
+#    （`.gitattributes` 里也记了这件事）
+[{backend/bin/clean.bat,backend/bin/package.bat}]
+charset = unset
+
+# 批处理一律 CRLF —— 这是 Windows 的要求，与上面的收敛策略不冲突
+[*.{bat,cmd}]
+end_of_line = crlf
+
+# 生成物 / 第三方：别让编辑器去整理它们
+[{pnpm-lock.yaml,package-lock.json,auto-imports.d.ts,components.d.ts}]
+insert_final_newline = unset
+trim_trailing_whitespace = unset

@@ -1,0 +1,96 @@
+# GitLab CI —— 只跑门禁，不做部署
+#
+# ── ⚠️ 这个文件是给**实例化后的项目**用的 ────────────────────────
+# 模板仓库自己跑这套 CI 会有一个必然失败项：`typecheck`。
+# 模板里 `vite.config.ts` 的 `port:` 是占位符，不是合法 TS ——
+# vue-tsc 会在那里中止，报"1 个错误"，棘轮随即显示"修复了 436 个"（假象）。
+# 详见 `docs/基建/类型检查棘轮.md` 与 `AI工程化需求.txt` §3.16。
+#
+# ── 为什么 CI 的职责只有"跑门禁" ─────────────────────────────────
+# 本项目的运行形态是：中间件走 Docker、代码走本地 `pnpm` / `java`，
+# **没有远程生产环境**。所以没有"部署"这一步可做。
+# 挂上来的五个脚本本来就是为 CI 设计的（有漂移则 exit 1）。
+
+stages:
+  - static
+  - frontend
+  - docs
+
+default:
+  image: node:22
+
+variables:
+  PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
+
+# 只在 MR 和默认分支上跑 —— 每推一个临时分支都跑一遍太吵
+.only_mr_or_default: &only_mr_or_default
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ── 静态检查：不装依赖，秒级 ─────────────────────────────────────
+static-checks:
+  stage: static
+  <<: *only_mr_or_default
+  script:
+    # skill / 命令的 frontmatter 与引用完整性（硬约束违反 → exit 1）
+    - node scripts/skill-lint.mjs
+    # 源码用到的 Element Plus 组件是否都有对应技能（缺了 → exit 1）
+    - node scripts/element-plus-scan.mjs --check
+
+# ── 前端：两道棘轮 ───────────────────────────────────────────────
+frontend-gates:
+  stage: frontend
+  <<: *only_mr_or_default
+  cache:
+    key:
+      files:
+        - frontend/pnpm-lock.yaml
+    paths:
+      - .pnpm-store/
+  before_script:
+    - corepack enable
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+    - pnpm -C frontend install --frozen-lockfile
+  script:
+    # 两个都是棘轮：只报【新增】，存量记在 scripts/*-baseline.json
+    - node scripts/typecheck.mjs
+    - node scripts/lint-ratchet.mjs
+
+# ── 文档一致性：需要库 ───────────────────────────────────────────
+#
+# ⚠️ `doc-scan.mjs --check` 走 `docker exec` 进容器查库（刻意不引 mysql 驱动，
+#    见该脚本文件头）。所以它**只能在有 docker exec 的 runner 上跑** ——
+#    即 **shell executor**，docker executor 下会失败。
+#
+# 于是这里标 `manual` + `allow_failure`：不是不管它，是**别让它挡住别的门禁**。
+# 想让它真正生效，二选一：
+#   a) 给这个项目配一个 shell runner（最简单）
+#   b) 改 doc-scan.mjs 支持直连数据库（要引 mysql 驱动，当初刻意避开了）
+# ⚠️ 注意这里**不能**复用上面的 `<<: *only_mr_or_default` 锚点：
+#    GitLab 里 job 级的 `when:` 与 `rules:` 不能混用 ——
+#    用了 `rules` 之后，`when: manual` 必须写进**每条 rule 里**，否则不生效
+#    （YAML 能解析、CI 不报错，但 job 会按默认的 on_success 跑，行为与预期不符）。
+docs-consistency:
+  stage: docs
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  variables:
+    DOC_DB_CONTAINER: ""
+    DOC_DB_NAME: ""
+    DOC_DB_PASSWORD: ""
+  script:
+    - |
+      if [ -z "$DOC_DB_CONTAINER" ]; then
+        echo "未配置 DOC_DB_CONTAINER —— 跳过（配置方法见本文件注释）"
+        exit 0
+      fi
+    - >
+      node scripts/doc-scan.mjs --check
+      --container "$DOC_DB_CONTAINER"
+      --db "$DOC_DB_NAME"
+      --password "$DOC_DB_PASSWORD"

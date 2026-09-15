@@ -1,0 +1,78 @@
+import type { PageDomain, BaseEntity } from "../common";
+
+/** ${functionName}配置分页查询参数 */
+export interface ${BusinessName}QueryParams extends PageDomain {
+## 多值列在查询区**未必是多选**，类型要跟着查询区实际渲染的控件走
+## （判据由 GenTableColumn#isMultiSelectQuery 收口，与 index.vue.vm 里那个初值用的是同一个）：
+##   - 有选项来源（字典 / 写死 / 接口）→ 查询区出多选 → string[]
+##   - 图片、附件这类没有选项来源的 → 查询区退化成普通文本框 → string（单值）
+## 实体接口那边恒为 string[]（@MultiValue 的出参就是数组），**同一字段两个接口不同形是刻意的**。
+#foreach($column in $columns)
+#if($column.query)
+#set($type = "string")
+#if($column.multiSelectQuery)
+  #set($type = "string[]")
+#elseif($column.htmlType == "switch")
+  ## 查询区的开关是「是/否」下拉，发 '1'/'0'（两种存储都吃）
+  #set($type = "string")
+#elseif($column.javaType == "Long" || $column.javaType == "Integer")
+  #set($type = "number")
+#elseif($column.javaType == "Boolean")
+  #set($type = "boolean")
+#end
+  /** ${column.columnComment} */
+  ${column.javaField}?: ${type};
+#end
+#end
+  /** 请求参数（日期区间等，由 index.vue 的 getList 写入 beginXxx/endXxx） */
+  params?: Record<string, any>;
+}
+
+/** ${functionName}配置信息 */
+export interface ${ClassName} extends BaseEntity {
+## 多值列（checkbox / 多选 select、treeselect / 图片 / 附件）线上是数组、库里是逗号串，
+## 由后端的 @MultiValue 在边界转换（见模板增强清单）；switch 列是布尔，由 @FlagValue 转换。
+## 所以这里的类型按**线上形状**给，而不是按数据库列的 javaType。
+#foreach($column in $columns)
+#set($type = "string")
+#if($column.multiValue)
+  #set($type = "string[]")
+#elseif($column.htmlType == "switch")
+  #set($type = "boolean")
+#elseif($column.javaType == "Long" || $column.javaType == "Integer")
+  #set($type = "number")
+#elseif($column.javaType == "Boolean")
+  #set($type = "boolean")
+#end
+  /** ${column.columnComment} */
+  ${column.javaField}?: ${type};
+#if($column.junction)
+  /** ${column.columnComment}的关联 id 集合 —— 存在辅助表里，库里没有这一列 */
+  ${column.ruleIdsField}?: number[];
+#end
+#end
+#if($table.sub)
+  /** $table.subTable.functionName信息 */
+  ${subclassName}List?: ${subClassName}[];
+#end
+}
+#if($table.sub)
+
+/** ${subTable.functionName}配置信息 */
+export interface ${subClassName} extends BaseEntity {
+#foreach ($column in $subTable.columns)
+#set($type = "string")
+#if($column.multiValue)
+  #set($type = "string[]")
+#elseif($column.htmlType == "switch")
+  #set($type = "boolean")
+#elseif($column.javaType == "Long" || $column.javaType == "Integer")
+  #set($type = "number")
+#elseif($column.javaType == "Boolean")
+  #set($type = "boolean")
+#end
+  /** ${column.columnComment} */
+  ${column.javaField}?: ${type};
+#end
+}
+#end

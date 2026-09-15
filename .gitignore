@@ -1,0 +1,49 @@
+# ---- 依赖 ----
+node_modules/
+.pnpm-store/
+
+# ---- 构建产物 ----
+target/
+dist/
+*.versionsBackup
+
+# ---- 运行时 ----
+logs/
+*.log
+# uploadPath 本身要保留（后端配置的 profile 路径指向它），但里面上传的文件不进版本库
+uploadPath/*
+!uploadPath/.gitkeep
+
+# ---- 本地/机器相关，不进版本库 ----
+# playwright MCP / 截图工具的产物目录
+.playwright-mcp/
+deploy/.env
+shots/
+.upstream/
+.claude/.state/
+.template-init.json
+# 个人权限设置 —— 优先级高于 settings.json，会覆盖团队约定，绝不能进版本库
+.claude/settings.local.json
+
+# ---- 包管理器：用 pnpm，别的锁文件不要 ----
+package-lock.json
+yarn.lock
+
+# ---- IDE ----
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.classpath
+.project
+.factorypath
+nbproject/private/
+*.swp
+*.swo
+
+# ---- 操作系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,108 @@
+package ${packageName}.domain;
+
+#foreach ($import in $subImportList)
+import ${import};
+#end
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.Excel;
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.RuleField;
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.RuleValidated;
+import @@JAVA_PACKAGE_ROOT@@.common.core.domain.BaseEntity;
+## ⚠️ 本文件与 vm/java/domain.java.vm 是**一对**：多值字段与布尔字段的转换注解两边都要挂。
+## 子表这条尤其不能省 —— 子表里的多选下拉（el-select multiple）绑的就是数组，
+## 少了 @MultiValue 就是「数组发给 String 字段」，提交必 400。
+#set($hasMultiValue = false)#set($hasFlagValue = false)#foreach($column in $subTable.columns)#if($column.multiValue && $column.javaType == "String")#set($hasMultiValue = true)#end#if($column.htmlType == "switch")#set($hasFlagValue = true)#end#end
+#if($hasMultiValue)
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.MultiValue;
+#end
+#if($hasFlagValue)
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.FlagValue;
+#end
+
+/**
+ * ${subTable.functionName}对象 ${subTableName}
+ *
+ * @date ${datetime}
+ */
+@RuleValidated(table = "${subTableName}")
+public class ${subClassName} extends BaseEntity
+{
+    private static final long serialVersionUID = 1L;
+
+#foreach ($column in $subTable.columns)
+#if(!$table.isSuperColumn($column.javaField))
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)
+#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+#else
+#set($comment=$column.columnComment)
+#end
+    /** $column.columnComment */
+#if($column.javaType == 'Date')
+## ⚠️ 与 domain.java.vm 同一套：按 htmlType 分（`date`/`datetime`/`time` 都是 Date），
+## 且 @JsonFormat 放在 list 判断之外
+#if($column.htmlType == "time")
+#set($dateFormat = "HH:mm:ss")
+#elseif($column.htmlType == "datetime")
+#set($dateFormat = "yyyy-MM-dd HH:mm:ss")
+#else
+#set($dateFormat = "yyyy-MM-dd")
+#end
+    @JsonFormat(pattern = "$dateFormat")
+#end
+#if($column.list)
+#if($parentheseIndex != -1)
+    @Excel(name = "${comment}", readConverterExp = "$column.readConverterExp()")
+#elseif($column.javaType == 'Date')
+    @Excel(name = "${comment}", width = 30, dateFormat = "$dateFormat")
+#else
+    @Excel(name = "${comment}")
+#end
+#end
+    @RuleField(column = "$column.columnName", label = "${comment}")
+#if($column.multiValue && $column.javaType == "String")
+## 线上数组、库里逗号串（与 domain.java.vm 同一套，见 MultiValue 的 javadoc）
+    @MultiValue
+#end
+#if($column.htmlType == "switch")
+## 线上布尔（库里 char(1) 或 tinyint(1)，转换器两种都认）
+    @FlagValue
+#end
+    private $column.javaType $column.javaField;
+
+#end
+#end
+#foreach ($column in $subTable.columns)
+#if(!$table.isSuperColumn($column.javaField))
+#if($column.javaField.length() > 2 && $column.javaField.substring(1,2).matches("[A-Z]"))
+#set($AttrName=$column.javaField)
+#else
+#set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+#end
+    public void set${AttrName}($column.javaType $column.javaField) 
+    {
+        this.$column.javaField = $column.javaField;
+    }
+
+    public $column.javaType get${AttrName}() 
+    {
+        return $column.javaField;
+    }
+#end
+#end
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
+#foreach ($column in $subTable.columns)
+#if($column.javaField.length() > 2 && $column.javaField.substring(1,2).matches("[A-Z]"))
+#set($AttrName=$column.javaField)
+#else
+#set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+#end
+            .append("${column.javaField}", get${AttrName}())
+#end
+            .toString();
+    }
+}

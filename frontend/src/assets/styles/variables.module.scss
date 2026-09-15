@@ -1,0 +1,512 @@
+// base color
+$blue: #324157;
+$light-blue: #333c46;
+$red: #C03639;
+$pink: #E65D6E;
+$green: #30B08F;
+$tiffany: #4AB7BD;
+$yellow: #FEC171;
+$panGreen: #30B08F;
+
+// 默认主题变量
+$menuText: #bfcbd9;
+$menuActiveText: #409eff;
+$menuBg: #1a1f2e;
+$menuHover: #263445;
+
+// 浅色主题theme-light
+$menuLightBg: #ffffff;
+$menuLightHover: #f0f1f5;
+$menuLightText: #303133;
+$menuLightActiveText: #409EFF;
+
+// 基础变量
+$base-sidebar-width: 200px;
+$sideBarWidth: 200px;
+
+// 菜单暗色变量
+$base-menu-color: rgba(255,255,255,.65);
+$base-menu-color-active: #ffffff;
+$base-menu-background: #1a1f2e;
+$base-sub-menu-background: #141824;
+$base-sub-menu-hover: rgba(255,255,255,.06);
+
+// 组件变量
+$--color-primary: #409EFF;
+$--color-success: #67C23A;
+$--color-warning: #E6A23C;
+$--color-danger: #F56C6C;
+$--color-info: #909399;
+
+:export {
+  menuText: $menuText;
+  menuActiveText: $menuActiveText;
+  menuBg: $menuBg;
+  menuHover: $menuHover;
+  menuLightBg: $menuLightBg;
+  menuLightHover: $menuLightHover;
+  menuLightText: $menuLightText;
+  menuLightActiveText: $menuLightActiveText;
+  sideBarWidth: $sideBarWidth;
+  // 导出基础颜色
+  blue: $blue;
+  lightBlue: $light-blue;
+  red: $red;
+  pink: $pink;
+  green: $green;
+  tiffany: $tiffany;
+  yellow: $yellow;
+  panGreen: $panGreen;
+  // 导出组件颜色
+  colorPrimary: $--color-primary;
+  colorSuccess: $--color-success;
+  colorWarning: $--color-warning;
+  colorDanger: $--color-danger;
+  colorInfo: $--color-info;
+}
+
+// CSS变量定义
+//
+// 分层约定（做主题预设时按这个顺序覆盖）：
+//   1. 内联样式（主题引擎写 documentElement）  ← 优先级最高
+//   2. html.dark（暗色默认值）
+//   3. :root（亮色默认值，即本块）
+// 未声明的令牌逐层回退。改这里时注意：html.dark 里出现过的变量，
+// 这里通常也要有一份亮色默认值，否则暗色切回亮色时该令牌会消失。
+:root {
+  /* 亮色模式变量 */
+  --sidebar-bg: #{$menuBg};
+  --sidebar-text: #{$menuText};
+  --menu-hover: #{$menuHover};
+  --menu-active-text: #{$menuActiveText};
+  --sidebar-logo-text: #ffffff;
+  --sidebar-hover-bg: rgba(0, 0, 0, 0.06);
+  // 注意：--sidebar-shadow 刻意不在这里定义。
+  // 基础态和 .theme-dark 的阴影值不同，定义在 :root 会把 theme-dark 的覆盖掉，
+  // 导致明暗切换时阴影变化。改由各使用点的 var() 回退值分别兜底，
+  // 主题引擎需要控制时直接写内联变量即可（内联优先级最高，两处一起生效）。
+
+  /* 浅色侧边栏（sideTheme=theme-light）专用 */
+  --sidebar-light-bg: #ffffff;
+  --sidebar-light-border: #e8eaf0;
+  /* --sidebar-light-text  = $menuLightText(#303133)，下发给 EP 的 --el-menu-text-color
+     --sidebar-light-menu-text = sidebar.scss 里对 .el-menu-item/.el-sub-menu__title 的显式覆盖
+     两者值不同、作用层次不同，不要合并 */
+  --sidebar-light-text: #303133;
+  --sidebar-light-logo-text: #303133;
+  --sidebar-light-menu-text: rgba(0, 0, 0, 0.65);
+  --sidebar-light-hover-bg: #f5f7fa;
+  --sidebar-light-hover-text: rgba(0, 0, 0, 0.85);
+  --sidebar-light-sub-bg: #fafafa;
+  --sidebar-light-sub-hover: #f0f5ff;
+
+  --navbar-bg: #ffffff;
+  --navbar-text: #303133;
+  --navbar-hover: rgba(0, 0, 0, 0.025);
+  --navbar-icon: #5a5e66;
+  --navbar-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+
+  /* 标签栏 */
+  --tags-bg: #ffffff;
+  --tags-item-bg: #ffffff;
+  --tags-item-border: #d8dce5;
+  --tags-item-text: #495060;
+  --tags-item-hover: #f0f2f5;
+  --tags-close-hover: #64666a;
+
+  /* 登录页背景。
+     --login-bg      是底层背景（渐变；主题预设可用 loginBg 令牌覆盖），
+     --login-overlay 是叠在它**之上**的染色层。
+     两者都必须是合法的背景图层（渐变或 url()），**不能写 transparent** ——
+     叠加时若拼成 linear-gradient(渐变, 渐变) 不是合法颜色值，整条
+     background-image 声明会被丢弃，背景直接消失。
+     改用渐变的另一层意思：登录页不再是写死的照片，而是跟随主题变色。 */
+  --login-bg: linear-gradient(135deg, #2b3445 0%, #1a1f2e 100%);
+  --login-overlay: linear-gradient(transparent, transparent);
+  --login-title: #707070;
+  --login-tip: #bfbfbf;
+  --login-footer: #ffffff;
+
+  /* splitpanes default-theme 变量 */
+  --splitpanes-default-bg: #ffffff;
+
+}
+
+// 暗黑模式变量
+html.dark {
+  /* 默认通用 */
+  --el-bg-color: #141414;
+  --el-bg-color-overlay: #1d1e1f;
+  --el-text-color-primary: #ffffff;
+  --el-text-color-regular: #d0d0d0;
+  --el-border-color: #434343;
+  --el-border-color-light: #434343;
+  --el-menu-text-color: #d0d0d0;
+  --sidebar-logo-text: #d0d0d0;
+  
+  /* primary */
+  --primary-bg: #18212b;
+
+  /* 侧边栏 */
+  --sidebar-bg: #141414;
+  --sidebar-text: #ffffff;
+  --menu-hover: #2d2d2d;
+  --menu-active-text: #{$menuActiveText};
+  /* 菜单项悬停底色。:root 里是 rgba(0,0,0,.06)，叠在深色底上等于没有反馈，
+     这里换成半透明白。注意这条规则才是实际生效的（sidebar.scss 的
+     .el-sub-menu__title:hover 选择器优先级高于 EP 的 --el-menu-hover-bg-color） */
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+
+  /* 顶部导航栏 */
+  --navbar-bg: #141414;
+  --navbar-text: #ffffff;
+  /* 原值是 #141414，与 --navbar-bg 完全相同 → 悬停没有任何视觉反馈，改为半透明白 */
+  --navbar-hover: rgba(255, 255, 255, 0.06);
+  /* 原先缺失，导致顶栏右侧图标沿用亮色的 #5a5e66，在深底上几乎看不见 */
+  --navbar-icon: #d0d0d0;
+
+  /* 标签栏 */
+  --tags-bg: #141414;
+  --tags-item-bg: #1d1e1f;
+  --tags-item-border: #303030;
+  --tags-item-text: #d0d0d0;
+  --tags-item-hover: #2d2d2d;
+  --tags-close-hover: #64666a;
+  /* 卡片模式激活页签 */
+  --tags-card-active-bg: color-mix(in srgb, var(--el-color-primary) 22%, var(--el-bg-color-overlay) 78%);
+  --tags-card-active-border: var(--tags-card-active-bg);
+
+  /* splitpanes 组件暗黑模式变量 */
+  --splitpanes-bg: #141414;
+  --splitpanes-border: #303030;
+  --splitpanes-splitter-bg: #1d1e1f;
+  --splitpanes-splitter-hover-bg: #2d2d2d;
+
+  /* blockquote 暗黑模式变量 */
+  --blockquote-bg: #1d1e1f;
+  --blockquote-border: #303030;
+  --blockquote-text: #d0d0d0;
+  
+  /* Cron 时间表达式 模式变量 */
+  --cron-border: #303030;
+
+  /* 登录页：暗色下底色更沉，再叠一层压暗（等价于原先 html.dark .login 里那条补丁） */
+  --login-bg: linear-gradient(135deg, #2e2e33 0%, #191919 100%);
+  --login-overlay: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55));
+  --login-title: #d0d0d0;
+  --login-footer: #ffffff;
+
+  /* splitpanes default-theme 暗黑模式变量 */
+  --splitpanes-default-bg: #141414;
+
+  /* 侧边栏菜单覆盖 */
+  .sidebar-container {
+    .el-menu-item:not(.is-active), .menu-title {
+      color: var(--el-text-color-regular);
+    }
+    & .el-menu .theme-dark .nest-menu .el-sub-menu > .el-sub-menu__title,
+    & .el-menu .theme-dark .el-sub-menu .el-menu-item,
+    & .theme-dark .nest-menu .el-sub-menu > .el-sub-menu__title,
+    & .theme-dark .el-sub-menu .el-menu-item {
+      background-color: var(--el-bg-color) !important;
+
+      &:hover {
+        background-color: var(--menu-hover) !important;
+      }
+    }
+    &.theme-light {
+      border-right: none !important;
+      .el-menu-item,
+      .el-sub-menu__title {
+        color: var(--sidebar-text) !important;
+      }
+      .el-menu-item:not(.is-active):hover,
+      .submenu-title-noDropdown:hover,
+      .el-sub-menu__title:hover {
+        background-color: var(--menu-hover) !important;
+      }
+      .el-menu .nest-menu .el-sub-menu>.el-sub-menu__title,
+      .el-menu .el-sub-menu .el-menu-item,
+      .nest-menu .el-sub-menu>.el-sub-menu__title,
+      .el-sub-menu .el-menu-item {
+        background-color: var(--el-bg-color) !important;
+        &:hover {
+          background-color: var(--menu-hover) !important;
+        }
+      }
+    }
+  }
+
+  .topmenu-container {
+    .el-menu-item,
+    .el-sub-menu .el-sub-menu__title {
+      color: var(--el-text-color-regular) !important;
+    }
+  }
+
+  .topbar-menu.el-menu--horizontal > .el-sub-menu .el-sub-menu__title{
+    color: var(--el-text-color-regular) !important;
+  }
+
+  /* 顶部栏栏菜单覆盖 */
+  .el-menu--horizontal {
+    .el-menu-item, .el-sub-menu {
+      &:not(.is-disabled) {
+        &:hover,
+        &:focus {
+          background-color: var(--navbar-hover) !important;
+          .el-sub-menu__title {
+            background-color: var(--navbar-hover) !important;
+          }
+        }
+      }
+    }
+  }
+
+  /* 页签样式覆盖 */
+  .navbar {
+    box-shadow: 0 1px 4px rgba(255, 255, 255, 0.08);
+  }
+  .tags-view-container {
+    &.tags-view-container--chrome {
+      --chrome-strip-bg: var(--el-bg-color);
+      --chrome-strip-border: var(--el-border-color);
+      --chrome-tab-active-bg: var(--el-bg-color-overlay);
+      --chrome-tab-active-bg: color-mix(in srgb, var(--el-color-primary) 22%, var(--el-bg-color-overlay) 78%);
+      --chrome-tab-text: var(--el-text-color-secondary);
+      --chrome-tab-text-active: var(--el-color-primary);
+      .tags-view-wrapper .tags-view-item:not(.active) + .tags-view-item:not(.active) {
+        border-left-color: var(--el-border-color);
+      }
+      .tags-view-wrapper .tags-view-item {
+        &:hover:not(.active) {
+          background: var(--el-fill-color, #303030) !important;
+          color: var(--el-text-color-primary);
+        }
+        &.active {
+          box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+        }
+      }
+    }
+    &:not(.tags-view-container--chrome) .tags-view-wrapper .tags-view-item.active {
+      background-color: var(--tags-card-active-bg) !important;
+      border-color: var(--tags-card-active-border) !important;
+      color: var(--current-color, #409eff) !important;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+
+      &::before {
+        background: var(--current-color, #409eff) !important;
+      }
+    }
+  }
+
+  /* 分割窗格覆盖 */
+  .tree-sidebar-manage-wrap {
+    .tree-sidebar-content {
+      background: var(--splitpanes-bg);
+    }
+    .tree-sidebar {
+      border-right: 1px solid var(--splitpanes-splitter-bg);
+      background: var(--splitpanes-bg);
+      .tree-header {
+        background: var(--splitpanes-bg);
+        border-color: var(--splitpanes-border);
+      }
+      .tree-title {
+        color: var(--el-color-primary-light-2);
+      }
+      .collapse-button-container {
+        background: var(--splitpanes-bg) !important;
+      }
+      .collapse-button {
+        &:hover {
+          color: var(--el-color-primary-light-2);
+          background: var(--splitpanes-bg);
+        }
+      }
+      .resize-handle {
+        &:hover {
+          background: var(--splitpanes-splitter-hover-bg);
+        }
+        &.active {
+          background: var(--splitpanes-splitter-hover-bg);
+        }
+      }
+    }
+  }
+
+  /* 按钮样式覆盖 */
+  .el-button--primary.is-plain {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--el-color-primary-light-2);
+    color: var(--el-color-primary-light-2);
+
+    &:hover {
+      background-color: var(--el-button-hover-bg-color);
+      border-color: var(--el-button-hover-border-color);
+      color: var(--el-button-hover-text-color);
+    }
+
+    &.is-disabled {
+      background-color: var(--link-active-bg-color);
+      border-color: var(--el-color-primary-light-3);
+      color: var(--el-color-primary-light-3);
+      opacity: 0.5;
+    }
+  }
+
+  /* primary tag 样式覆盖 */
+  .el-tag--primary {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--el-border-color-light);
+    color: var(--el-color-primary);
+  }
+
+  /* 表格样式覆盖 */
+  .el-table {
+    --el-table-header-bg-color: var(--el-bg-color-overlay) !important;
+    --el-table-header-text-color: var(--el-text-color-regular) !important;
+    --el-table-border-color: var(--el-border-color-light) !important;
+    --el-table-row-hover-bg-color: var(--el-bg-color-overlay) !important;
+
+    .el-table__header-wrapper, .el-table__fixed-header-wrapper {
+      th {
+        background-color: var(--el-bg-color-overlay, #f8f8f9) !important;
+        color: var(--el-text-color-regular, #515a6e);
+      }
+    }
+  }
+
+  /* 树组件高亮样式覆盖 */
+  .el-tree {
+    .el-tree-node.is-current > .el-tree-node__content {
+      background-color: var(--el-bg-color-overlay) !important;
+      color: var(--el-color-primary);
+    }
+
+    .el-tree-node__content:hover {
+      background-color: var(--el-bg-color-overlay);
+    }
+  }
+  
+  /* 下拉菜单样式覆盖 */
+  .el-dropdown-menu__item:not(.is-disabled):focus, .el-dropdown-menu__item:not(.is-disabled):hover{
+    background-color: var(--navbar-hover) !important;
+  }
+
+  /* blockquote样式覆盖 */
+  blockquote {
+    background-color: var(--blockquote-bg) !important;
+    border-left-color: var(--blockquote-border) !important;
+    color: var(--blockquote-text) !important;
+  }
+  
+  /* 时间表达式标题样式覆盖 */
+  .popup-result .title {
+    background: var(--cron-border);
+  }
+
+  /* 底部版权样式覆盖 */
+  .copyright {
+    background-color: var(--el-bg-color) !important;
+    color: var(--el-text-color-regular) !important;
+    border-top: 1px solid var(--el-bg-color) !important;
+  }
+
+  /* 详情抽屉暗黑模式覆盖 */
+  .detail-drawer {
+    .el-drawer__header {
+      color: var(--el-text-color-primary);
+      background: var(--el-bg-color-overlay);
+      border-bottom: 1px solid var(--el-border-color);
+    }
+    .section-header {
+      color: var(--el-color-primary-light-3);
+      border-bottom-color: var(--el-border-color);
+    }
+    .drawer-content {
+      .info-label {
+        color: var(--el-text-color-secondary);
+      }
+      .info-value {
+        color: var(--el-text-color-primary);
+        &.plaintext {
+          border-bottom-color: var(--el-border-color);
+        }
+      }
+    }
+  }
+
+  /* 详情卡片暗黑模式覆盖 */
+  .detail-card {
+    border-color: var(--el-border-color);
+  }
+  .detail-card-title {
+    background: var(--el-bg-color-overlay);
+    color: var(--el-text-color-primary);
+    border-bottom-color: var(--el-border-color);
+  }
+  .detail-item {
+    border-bottom-color: var(--el-border-color-lighter, #2a2a2a);
+  }
+  .detail-label {
+    color: var(--el-text-color-secondary);
+  }
+  .detail-value {
+    color: var(--el-text-color-primary);
+  }
+  .code-wrap {
+    background: var(--el-bg-color-overlay);
+    border-color: var(--el-border-color);
+  }
+  .code-pre {
+    color: var(--el-text-color-regular);
+  }
+  .code-action .el-button {
+    background: rgba(30, 30, 30, 0.9);
+    border-color: var(--el-border-color);
+    color: var(--el-text-color-regular);
+    &:hover {
+      background: var(--el-bg-color-overlay);
+      border-color: var(--el-color-primary);
+    }
+  }
+
+  /* 字典详情抽屉暗黑模式变量 */
+  --dict-drawer-title-color: var(--el-text-color-primary);
+  --dict-drawer-subtext-color: var(--el-text-color-secondary);
+  --dict-drawer-card-bg: var(--el-bg-color-overlay);
+  --dict-drawer-border-color: var(--el-border-color);
+  --dict-drawer-cell-divider: var(--el-border-color-lighter, #2a2a2a);
+
+  /* 通知公告详情抽屉暗黑模式变量 */
+  --notice-title-color: var(--el-text-color-primary);
+  --notice-meta-color: var(--el-text-color-secondary);
+  --notice-meta-icon-color: var(--el-text-color-placeholder, #606266);
+  --notice-border-color: var(--el-border-color);
+  --notice-body-bg: var(--el-bg-color-overlay);
+  --notice-body-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --notice-content-color: var(--el-text-color-regular);
+  --notice-drawer-body-bg: var(--el-bg-color);
+  --notice-divider-gradient: linear-gradient(to right, transparent, var(--el-border-color), transparent);
+  --notice-divider-dot-color: var(--el-border-color-light, #434343);
+  --notice-blockquote-bg: var(--el-bg-color);
+  --notice-blockquote-border: var(--el-border-color);
+  --notice-table-border: var(--el-border-color);
+  --notice-table-header-bg: var(--el-bg-color);
+  --notice-tag-notify-bg: rgba(217, 119, 6, 0.15);
+  --notice-tag-notify-color: #f6ad55;
+  --notice-tag-announce-bg: rgba(56, 161, 105, 0.15);
+  --notice-tag-announce-color: #68d391;
+}
+
+.notice-detail-drawer {
+  .notice-content {
+    color: var(--el-text-color-regular) !important;
+    * { color: var(--el-text-color-regular) !important; }
+    h1~h6, strong, b { color: var(--el-text-color-primary) !important; }
+    a, a * { color: #5ba7f5 !important; }
+    blockquote, blockquote * { color: var(--el-text-color-secondary) !important; }
+  }
+}
+

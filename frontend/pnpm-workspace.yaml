@@ -1,0 +1,12 @@
+# pnpm 12 的构建脚本白名单。
+#
+# 这几个依赖带 postinstall 构建脚本，pnpm 默认拒绝执行（供应链安全策略），
+# 不白名单化就会报 ERR_PNPM_IGNORED_BUILDS，esbuild 也装不上原生二进制。
+#
+# ⚠️ 字段名是 allowBuilds（布尔值映射）。早期版本用的是 onlyBuiltDependencies 数组，
+#    在 pnpm 12 下写了不报错但**静默失效** —— 这个文件原本就是 pnpm 自己生成
+#    的桩，占位符写着 "set this to true or false"，即它要的是布尔值。
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true
+  vue-demi: true

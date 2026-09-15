@@ -1,0 +1,15 @@
+# 代码生成
+gen:
+  # 作者
+  # 作者（模板占位符；@author 标签已从 vm 模板移除，此项目前未使用）
+  author: @@PROJECT_NAME@@
+  # 默认生成包路径。
+  # 指向 @@MAVEN_ARTIFACT_PREFIX@@-biz 模块 —— 这样生成的 CRUD 直接落进业务模块，零手工搬运。
+  # 想生成到别处（如 @@JAVA_PACKAGE_ROOT@@.system）在生成器界面上改。
+  packageName: @@JAVA_PACKAGE_ROOT@@.biz
+  # 自动去除表前缀，默认是false
+  autoRemovePre: false
+  # 表前缀（生成类名不会包含表前缀，多个用逗号分隔）
+  tablePrefix: sys_
+  # 是否允许生成文件覆盖到本地（自定义路径），默认不允许
+  allowOverwrite: false

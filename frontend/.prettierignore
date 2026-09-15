@@ -1,0 +1,12 @@
+# Prettier 只管代码，不管别人生成的东西
+dist
+node_modules
+coverage
+
+# 锁文件与自动生成的类型声明（.editorconfig 同样排除）
+pnpm-lock.yaml
+src/auto-imports.d.ts
+src/components.d.ts
+
+# 含模板占位符，模板态下不是合法 TS（同 eslint.config.js 的排除理由）
+vite.config.ts

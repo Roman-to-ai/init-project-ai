@@ -1,0 +1,172 @@
+package ${packageName}.domain;
+
+#foreach ($import in $importList)
+import ${import};
+#end
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.Excel;
+## 校验注解**无条件带上**，不是"有规则才带"：
+## 这样在生成器界面上新配一条规则 → 保存 → 校验立即生效，**不用重新生成代码**。
+## 给每个字段都挂 @RuleField 看起来啰嗦，但它和每个字段都有的 @Excel 是同一量级，
+## 换来的是"规则纯运行时驱动"—— 那才是把校验抽离出去的意义。
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.RuleField;
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.RuleValidated;
+## 多值字段（checkbox / 多选 select、treeselect / 图片 / 附件）线上是 JSON 数组、库里是逗号串；
+## switch 线上是 true/false、库里是 char(1) 的 '1'/'0'。两个注解把差异收在 Jackson 边界上，
+## 所以字段与 Mapper 一行都不用改。判据见 GenTableColumn#isMultiValue。
+## 先扫一遍列决定要不要 import —— 与 index.vue.vm 里 $hasTreeSelect 的写法一致，别让产物带无用 import。
+## ⚠️ 多值列必须再判一次 `javaType == "String"`：转换器是针对 String 写的，
+## 万一有人把 checkbox 配在 int 列上（畸形配置，字段类型.md 明确要求 varchar），
+## 挂着注解会在序列化时直接抛类型转换异常，不如干脆不挂。
+#set($hasMultiValue = false)#set($hasFlagValue = false)#foreach($column in $columns)#if($column.multiValue && $column.javaType == "String")#set($hasMultiValue = true)#end#if($column.htmlType == "switch")#set($hasFlagValue = true)#end#end
+#if($hasMultiValue)
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.MultiValue;
+#end
+#if($hasFlagValue)
+import @@JAVA_PACKAGE_ROOT@@.common.annotation.FlagValue;
+#end
+#if($table.crud || $table.sub)
+import @@JAVA_PACKAGE_ROOT@@.common.core.domain.BaseEntity;
+#elseif($table.tree)
+import @@JAVA_PACKAGE_ROOT@@.common.core.domain.TreeEntity;
+#end
+
+/**
+ * ${functionName}对象 ${tableName}
+ * 
+ * @date ${datetime}
+ */
+#if($table.crud || $table.sub)
+#set($Entity="BaseEntity")
+#elseif($table.tree)
+#set($Entity="TreeEntity")
+#end
+@RuleValidated(table = "${tableName}")
+public class ${ClassName} extends ${Entity}
+{
+    private static final long serialVersionUID = 1L;
+
+#foreach ($column in $columns)
+#if(!$table.isSuperColumn($column.javaField))
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)
+#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+#else
+#set($comment=$column.columnComment)
+#end
+    /** $column.columnComment */
+#if($column.javaType == 'Date')
+## ⚠️ 必须按 **htmlType** 分，不能按 javaType —— `date` / `datetime` / `time` 三个类型都是 `Date`。
+## 一律给 `yyyy-MM-dd` 的话，datetime 与 time 的时分秒会在接口读写时**被静默截断**
+## （实测：存一次变 00:00:00，界面上编辑任何字段都会触发）。
+#if($column.htmlType == "time")
+#set($dateFormat = "HH:mm:ss")
+#elseif($column.htmlType == "datetime")
+#set($dateFormat = "yyyy-MM-dd HH:mm:ss")
+#else
+#set($dateFormat = "yyyy-MM-dd")
+#end
+## @JsonFormat 放在 list 判断**之外**：不在列表里出现、但会进表单的日期字段同样需要它，
+## 否则出参是时间戳数字、日期控件没法回显
+    @JsonFormat(pattern = "$dateFormat")
+#end
+#if($column.list)
+#if($parentheseIndex != -1)
+    @Excel(name = "${comment}", readConverterExp = "$column.readConverterExp()")
+#elseif($column.javaType == 'Date')
+    @Excel(name = "${comment}", width = 30, dateFormat = "$dateFormat")
+#else
+    @Excel(name = "${comment}")
+#end
+#end
+    @RuleField(column = "$column.columnName", label = "${comment}")
+#if($column.multiValue && $column.javaType == "String")
+## 线上数组、库里逗号串。字段仍是 String，所以校验/Excel/find_in_set 全不受影响
+    @MultiValue
+#end
+#if($column.htmlType == "switch")
+## 线上布尔。库里 char(1) 存 '1'/'0'、tinyint(1) 存 1/0 —— 转换器两种都认
+    @FlagValue
+#end
+    private $column.javaType $column.javaField;
+
+#end
+#end
+#foreach($column in $columns)
+#if($column.junction)
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)#set($comment=$column.columnComment.substring(0, $parentheseIndex))#else#set($comment=$column.columnComment)#end
+    /** 「$comment」的关联 id 集合 —— 存在辅助表 $column.ruleJunctionTable 里，本表**没有**这一列 */
+    private Long[] $column.ruleIdsField;
+
+#end
+#end
+#if($table.sub)
+    /** $table.subTable.functionName信息 */
+    private List<${subClassName}> ${subclassName}List;
+
+#end
+#foreach ($column in $columns)
+#if(!$table.isSuperColumn($column.javaField))
+#if($column.javaField.length() > 2 && $column.javaField.substring(1,2).matches("[A-Z]"))
+#set($AttrName=$column.javaField)
+#else
+#set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+#end
+    public void set${AttrName}($column.javaType $column.javaField) 
+    {
+        this.$column.javaField = $column.javaField;
+    }
+
+    public $column.javaType get${AttrName}() 
+    {
+        return $column.javaField;
+    }
+
+#end
+#end
+#foreach($column in $columns)
+#if($column.junction)
+## 引用后面紧跟 `(` 时**必须用花括号** —— 否则 Velocity 会当成方法调用，`Long[]` 就成了非法参数
+    public void set${column.idsFieldCap}(Long[] $column.ruleIdsField)
+    {
+        this.$column.ruleIdsField = $column.ruleIdsField;
+    }
+
+    public Long[] get${column.idsFieldCap}()
+    {
+        return $column.ruleIdsField;
+    }
+
+#end
+#end
+#if($table.sub)
+    public List<${subClassName}> get${subClassName}List()
+    {
+        return ${subclassName}List;
+    }
+
+    public void set${subClassName}List(List<${subClassName}> ${subclassName}List)
+    {
+        this.${subclassName}List = ${subclassName}List;
+    }
+
+#end
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
+#foreach ($column in $columns)
+#if($column.javaField.length() > 2 && $column.javaField.substring(1,2).matches("[A-Z]"))
+#set($AttrName=$column.javaField)
+#else
+#set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+#end
+            .append("${column.javaField}", get${AttrName}())
+#end
+#if($table.sub)
+            .append("${subclassName}List", get${subClassName}List())
+#end
+            .toString();
+    }
+}

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>@@MAVEN_ARTIFACT_PREFIX@@</artifactId>
+        <groupId>@@JAVA_PACKAGE_ROOT@@</groupId>
+        <version>3.9.2</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>@@MAVEN_ARTIFACT_PREFIX@@-storage-minio</artifactId>
+
+    <description>
+        MinIO 对象存储实现 —— **可选模块**。
+
+        不需要对象存储的项目：把 @@MAVEN_ARTIFACT_PREFIX@@-admin/pom.xml 里对本模块的那一条
+        dependency 删掉即可，其余一行都不用动（FileStorageService 接口与本地实现无条件在
+        @@MAVEN_ARTIFACT_PREFIX@@-common 里，删掉本模块后本地模式照常工作）。
+
+        这样做的理由：MinIO SDK 会拖进 okhttp / guava / bouncycastle / snappy 等一批传递依赖，
+        不该让用不到对象存储的项目也背上。
+    </description>
+
+    <dependencies>
+
+        <!-- 只依赖 common —— 与 @@MAVEN_ARTIFACT_PREFIX@@-biz 同样的做法。
+             @RestController / @ConditionalOnProperty 都由 common 的传递依赖提供。 -->
+        <dependency>
+            <groupId>@@JAVA_PACKAGE_ROOT@@</groupId>
+            <artifactId>@@MAVEN_ARTIFACT_PREFIX@@-common</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>

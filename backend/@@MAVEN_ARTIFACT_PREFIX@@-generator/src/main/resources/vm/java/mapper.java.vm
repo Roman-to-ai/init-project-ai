@@ -1,0 +1,138 @@
+package ${packageName}.mapper;
+
+import java.util.List;
+import ${packageName}.domain.${ClassName};
+#if($table.sub)
+import ${packageName}.domain.${subClassName};
+#end
+#if($hasJunction)
+import org.apache.ibatis.annotations.Param;
+#end
+
+/**
+ * ${functionName}Mapper接口
+ * 
+ * @date ${datetime}
+ */
+public interface ${ClassName}Mapper 
+{
+    /**
+     * 查询${functionName}
+     * 
+     * @param ${pkColumn.javaField} ${functionName}主键
+     * @return ${functionName}
+     */
+    public ${ClassName} select${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField});
+
+    /**
+     * 查询${functionName}列表
+     * 
+     * @param ${className} ${functionName}
+     * @return ${functionName}集合
+     */
+    public List<${ClassName}> select${ClassName}List(${ClassName} ${className});
+
+    /**
+     * 新增${functionName}
+     * 
+     * @param ${className} ${functionName}
+     * @return 结果
+     */
+    public int insert${ClassName}(${ClassName} ${className});
+
+    /**
+     * 修改${functionName}
+     * 
+     * @param ${className} ${functionName}
+     * @return 结果
+     */
+    public int update${ClassName}(${ClassName} ${className});
+
+    /**
+     * 删除${functionName}
+     * 
+     * @param ${pkColumn.javaField} ${functionName}主键
+     * @return 结果
+     */
+    public int delete${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField});
+
+    /**
+     * 批量删除${functionName}
+     * 
+     * @param ${pkColumn.javaField}s 需要删除的数据主键集合
+     * @return 结果
+     */
+    public int delete${ClassName}By${pkColumn.capJavaField}s(${pkColumn.javaType}[] ${pkColumn.javaField}s);
+#if($table.sub)
+
+    /**
+     * 批量删除${subTable.functionName}
+     * 
+     * @param ${pkColumn.javaField}s 需要删除的数据主键集合
+     * @return 结果
+     */
+    public int delete${subClassName}By${subTableFkClassName}s(${pkColumn.javaType}[] ${pkColumn.javaField}s);
+    
+    /**
+     * 批量新增${subTable.functionName}
+     * 
+     * @param ${subclassName}List ${subTable.functionName}列表
+     * @return 结果
+     */
+    public int batch${subClassName}(List<${subClassName}> ${subclassName}List);
+    
+
+    /**
+     * 通过${functionName}主键删除${subTable.functionName}信息
+     * 
+     * @param ${pkColumn.javaField} ${functionName}ID
+     * @return 结果
+     */
+    public int delete${subClassName}By${subTableFkClassName}(${pkColumn.javaType} ${pkColumn.javaField});
+#end
+#foreach($column in $columns)
+#if($column.junction)
+
+    /**
+     * 查询「${column.columnComment}」的关联 id 集合 —— 来自辅助表 $column.ruleJunctionTable
+     *
+     * @param ${pkColumn.javaField} ${functionName}主键
+     * @return 关联 id 集合
+     */
+    public Long[] select${column.idsFieldCap}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField});
+
+    /**
+     * 批量新增「${column.columnComment}」的关联（先由 Service 删旧的）
+     *
+     * @param ${pkColumn.javaField} ${functionName}主键
+     * @param refIds 关联 id 集合
+     * @return 结果
+     */
+    public int batch${column.idsFieldCap}(@Param("${pkColumn.javaField}") ${pkColumn.javaType} ${pkColumn.javaField}, @Param("refIds") Long[] refIds);
+
+    /**
+     * 删除「${column.columnComment}」在本主键下的全部关联
+     *
+     * @param ${pkColumn.javaField} ${functionName}主键
+     * @return 结果
+     */
+    public int delete${column.idsFieldCap}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField});
+
+    /**
+     * 批量删除「${column.columnComment}」的关联（删主记录时用）
+     *
+     * @param ${pkColumn.javaField}s 主键集合
+     * @return 结果
+     */
+    public int delete${column.idsFieldCap}By${pkColumn.capJavaField}s(${pkColumn.javaType}[] ${pkColumn.javaField}s);
+
+    /**
+     * 按辅助表重算「${column.columnComment}」的冗余显示列
+     *
+     * @param ${pkColumn.javaField} ${functionName}主键
+     * @return 结果
+     */
+    public int refresh${column.idsFieldCap}Names(${pkColumn.javaType} ${pkColumn.javaField});
+#end
+#end
+}

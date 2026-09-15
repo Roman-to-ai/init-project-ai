@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="@@JAVA_PACKAGE_ROOT@@.biz.mapper.BizDemoOrderMapper">
+    
+    <resultMap type="BizDemoOrder" id="BizDemoOrderResult">
+        <result property="orderId"    column="order_id"    />
+        <result property="orderNo"    column="order_no"    />
+        <result property="productName"    column="product_name"    />
+        <result property="orderStatus"    column="order_status"    />
+        <result property="planQty"    column="plan_qty"    />
+        <result property="planStart"    column="plan_start"    />
+        <result property="delFlag"    column="del_flag"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectBizDemoOrderVo">
+        select order_id, order_no, product_name, order_status, plan_qty, plan_start, del_flag, create_by, create_time, update_by, update_time, remark from biz_demo_order
+    </sql>
+
+    <select id="selectBizDemoOrderList" parameterType="BizDemoOrder" resultMap="BizDemoOrderResult">
+        <include refid="selectBizDemoOrderVo"/>
+        <where>  
+            <if test="orderNo != null  and orderNo != ''"> and order_no = #{orderNo}</if>
+            <if test="productName != null  and productName != ''"> and product_name like concat('%', #{productName}, '%')</if>
+            <if test="orderStatus != null  and orderStatus != ''"> and order_status = #{orderStatus}</if>
+            <if test="planQty != null "> and plan_qty = #{planQty}</if>
+            <if test="params.beginPlanStart != null and params.beginPlanStart != '' and params.endPlanStart != null and params.endPlanStart != ''"> and plan_start &gt;= #{params.beginPlanStart} and plan_start &lt; date_add(#{params.endPlanStart}, interval 1 day)</if>
+        </where>
+    </select>
+    
+    <select id="selectBizDemoOrderByOrderId" parameterType="Long" resultMap="BizDemoOrderResult">
+        <include refid="selectBizDemoOrderVo"/>
+        where order_id = #{orderId}
+    </select>
+
+    <insert id="insertBizDemoOrder" parameterType="BizDemoOrder" useGeneratedKeys="true" keyProperty="orderId">
+        insert into biz_demo_order
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">order_no,</if>
+            <if test="productName != null">product_name,</if>
+            <if test="orderStatus != null">order_status,</if>
+            <if test="planQty != null">plan_qty,</if>
+            <if test="planStart != null">plan_start,</if>
+            <if test="delFlag != null">del_flag,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">#{orderNo},</if>
+            <if test="productName != null">#{productName},</if>
+            <if test="orderStatus != null">#{orderStatus},</if>
+            <if test="planQty != null">#{planQty},</if>
+            <if test="planStart != null">#{planStart},</if>
+            <if test="delFlag != null">#{delFlag},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBizDemoOrder" parameterType="BizDemoOrder">
+        update biz_demo_order
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">order_no = #{orderNo},</if>
+            <if test="productName != null">product_name = #{productName},</if>
+            <if test="orderStatus != null">order_status = #{orderStatus},</if>
+            <if test="planQty != null">plan_qty = #{planQty},</if>
+            <if test="planStart != null">plan_start = #{planStart},</if>
+            <if test="delFlag != null">del_flag = #{delFlag},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where order_id = #{orderId}
+    </update>
+
+    <delete id="deleteBizDemoOrderByOrderId" parameterType="Long">
+        delete from biz_demo_order where order_id = #{orderId}
+    </delete>
+
+    <delete id="deleteBizDemoOrderByOrderIds" parameterType="String">
+        delete from biz_demo_order where order_id in 
+        <foreach item="orderId" collection="array" open="(" separator="," close=")">
+            #{orderId}
+        </foreach>
+    </delete>
+</mapper>

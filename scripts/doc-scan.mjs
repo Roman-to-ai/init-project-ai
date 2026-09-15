@@ -26,7 +26,7 @@
  *
  * 用法：
  *   node scripts/doc-scan.mjs                 生成 / 刷新
- *   node scripts/doc-scan.mjs --check         只读体检：缺文档、生成块过期 → exit 1
+ *   node scripts/doc-scan.mjs --check         只读体检：缺文档 / 生成块过期 / 多余的文档 → exit 1
  *   node scripts/doc-scan.mjs --module demoProduct    只处理一个模块
  *   node scripts/doc-scan.mjs --list          只列出识别到的模块，不写文件
  *
@@ -623,12 +623,30 @@ ${END}
   written.push('+ docs/业务/README.md')
 }
 
+// ── 孤儿文档：文档还在，但对应的模块已经没了 ────────────────────
+//
+// 脚本**只按数据库里的模块迭代**，从来不回头看 `docs/业务/` 里有没有多余的文档。
+// 于是「模块被去掉、文档留下」这种情况无人处理。实测复现过：
+//   给表建个菜单 → 跑脚本 → 有文档；再删掉菜单 → 跑脚本 → **文档还在**；
+//   而且 `--check` 报「全部一致」、exit 0 —— **完全发现不了**。
+//
+// 这类文档描述的是一批**不存在的文件**，比缺文档更容易误导（照着找必扑空）。
+// **只报告，不自动删** —— 删除是人的决定。
+const knownDocs = new Set(modules.map((m) => `${m.functionName}.md`))
+const orphanDocs = existsSync(DOCS)
+  ? readdirSync(DOCS)
+      .filter((f) => f.endsWith('.md') && f !== 'README.md' && !knownDocs.has(f))
+      .sort()
+  : []
+
 // ── 收尾 ──
 if (CHECK) {
+  for (const f of orphanDocs) problems.push(`多余的文档（模块已不存在）：docs/业务/${f}`)
   if (problems.length) {
     console.error(`\n✗ 文档与代码/数据库不一致（${problems.length} 处）：`)
     for (const p of problems) console.error(`  · ${p}`)
     console.error(`\n  跑 \`node scripts/doc-scan.mjs\` 刷新。\n`)
+    console.error(`  「多余的文档」不会被自动删除 —— 确认那个模块确实没了，再手工删。\n`)
     process.exit(1)
   }
   console.log(`\n✓ ${modules.length} 个模块的文档都与代码/数据库一致。\n`)
@@ -637,5 +655,9 @@ if (CHECK) {
   else console.log('没有变化。')
   if (orphanTables.length) {
     console.log(`\n⚠️ ${orphanTables.length} 张表有 gen_table 记录但没挂菜单（见 docs/业务/README.md）。`)
+  }
+  if (orphanDocs.length) {
+    console.log(`\n⚠️ ${orphanDocs.length} 份文档对应的模块已经不存在了（**不自动删**，确认后手工删）：`)
+    for (const f of orphanDocs) console.log(`    docs/业务/${f}`)
   }
 }
